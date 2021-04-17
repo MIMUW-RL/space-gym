@@ -15,25 +15,25 @@ class Rocket1D(ClassicalMechanicsEnv):
             position_lows=self.low, position_highs=self.high, n_actions=2, dt=0.02
         )
 
-    def action_to_forces(self, action):
+    def external_force(self, action, _state):
         return np.array([action * self.force_mag])
 
-    def acceleration(self, x, v, control):
-        force = control - self.gravity
+    def acceleration(self, x, v, external_force):
+        force = external_force - self.gravity
         return force / self.mass
 
     def reward(self, action):
         reward = -action * self.fuel_penalty
         if self.done:
             x, v = self.state
-            if x < self.low:
+            if x <= self.low or np.isclose(x, self.low):
                 v = min(v, 0)
                 # no penalty if not going downward, exponential otherwise
                 reward -= min(np.expm1(-v), 1e4)
-            elif x > self.high:
+            elif x >= self.high or np.isclose(x, self.high):
                 reward -= 1e5
             else:
-                raise ValueError
+                raise ValueError(x)
 
         return reward
 

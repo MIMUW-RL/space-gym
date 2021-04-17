@@ -15,15 +15,14 @@ class RandomAgent(object):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description=None)
-    parser.add_argument('env_id', nargs='?', default='gym_space:Rocket1D-v0', help='Select the environment to run')
-    args = parser.parse_args()
+    # env_id = 'gym_space:Rocket1D-v0'
+    env_id = 'gym_space:Rocket2D2DoF-v0'
+    # env_id = 'gym_space:Rocket2D3DoF-v0'
+    env = gym.make(env_id)
 
     # You can set the level to logger.DEBUG or logger.WARN if you
     # want to change the amount of output.
     logger.set_level(logger.INFO)
-
-    env = gym.make(args.env_id)
 
     # You provide the directory to write to (can be an existing
     # directory, including one with existing data -- all monitor files

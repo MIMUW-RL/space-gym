@@ -7,8 +7,6 @@ from functools import partial
 
 
 class ClassicalMechanicsEnv(gym.Env):
-    metadata = {"render.modes": ["human", "rgb_array"], "video.frames_per_second": 50}
-
     def __init__(
         self, position_lows, position_highs, n_actions, dt, angular_pos_nums=()
     ):
@@ -37,18 +35,19 @@ class ClassicalMechanicsEnv(gym.Env):
         for e in self.terminal_events:
             e.terminal = True
 
-        if not np.isscalar(n_actions):
-            assert len(n_actions) <= self.state_space_dim
+        assert len(n_actions) <= self.state_space_dim
 
         self.action_space = spaces.MultiDiscrete(n_actions)
         self.dt = dt  # seconds between observations
+        self.metadata = {"render.modes": ["human", "rgb_array"],
+                    "video.frames_per_second": 1/dt}
         self.state = None
         self.done = False
         self.np_random = None
         self.seed()
         self._action = None
 
-    def normalize_angular(self):
+    def normalize_angular_positions(self):
         for i in self.angular_pos_nums:
             self.state[i] -= self.state_space.low[i]
             self.state[i] %= self.state_space.high[i] - self.state_space.low[i]
@@ -59,9 +58,9 @@ class ClassicalMechanicsEnv(gym.Env):
         return [seed]
 
     def close(self):
-        if self.viewer:
-            self.viewer.close()
-            self.viewer = None
+        if self._viewer:
+            self._viewer.close()
+            self._viewer = None
 
     def reset(self):
         self.state = self.sample_initial_state()
@@ -71,8 +70,13 @@ class ClassicalMechanicsEnv(gym.Env):
     def sample_initial_state(self):
         return self.state_space.sample()
 
-    def step(self, action):
-        assert self.action_space.contains(action), f"{action=} invalid"
+    @staticmethod
+    def raw_action_to_action(raw_action):
+        raise NotImplementedError
+
+    def step(self, raw_action):
+        assert self.action_space.contains(raw_action), f"{raw_action=} invalid"
+        action = self.raw_action_to_action(raw_action)
         self._action = action
 
         def vector_field_(_t, state):
@@ -86,7 +90,7 @@ class ClassicalMechanicsEnv(gym.Env):
         )
         assert ode_solution.success
         self.state = ode_solution.y[:, -1]
-        self.normalize_angular()
+        self.normalize_angular_positions()
         # we were out of state space
         done = ode_solution.status == 1
 

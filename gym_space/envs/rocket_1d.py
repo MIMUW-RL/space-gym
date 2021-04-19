@@ -1,74 +1,54 @@
 import numpy as np
-from .classical_mechanics import ClassicalMechanicsEnv
+from .rocket_landing import RocketLanding, RocketPosition
 
 
-class Rocket1D(ClassicalMechanicsEnv):
+class Rocket1D(RocketLanding):
+    engines_angles = (0.,)
+    world_width = 1
+    world_height = 10
+
     def __init__(self):
-        self.gravity = 9.8
-        self.mass = 1
-        self.force_mag = 19.4
-        self.fuel_penalty = 1.0
-        self.viewer = None
-        self.rocket_trans = None
         self.low, self.high = 0, 10
         super().__init__(
-            position_lows=self.low, position_highs=self.high, n_actions=2, dt=0.02
+            position_lows=self.low,
+            position_highs=self.high,
+            force_mag=np.array([19.4]),
+            n_actions=(2,)
         )
 
     def external_force(self, action, _state):
-        return np.array([action * self.force_mag])
+        return action * self.force_mag
 
     def acceleration(self, x, v, external_force):
         force = external_force - self.gravity
         return force / self.mass
 
-    def reward(self, action):
-        reward = -action * self.fuel_penalty
-        if self.done:
-            x, v = self.state
-            if x <= self.low or np.isclose(x, self.low):
-                v = min(v, 0)
-                # no penalty if not going downward, exponential otherwise
-                reward -= min(np.expm1(-v), 1e4)
-            elif x >= self.high or np.isclose(x, self.high):
-                reward -= 1e5
-            else:
-                raise ValueError(x)
+    def final_reward(self):
+        x, v = self.state
+        if x <= self.low or np.isclose(x, self.low):
+            v = min(v, 0)
+            # no penalty if not going downward, exponential otherwise
+            return -min(np.expm1(-v), 1e4)
+        elif x >= self.high or np.isclose(x, self.high):
+            return -1e5
+        else:
+            raise ValueError(x)
 
-        return reward
+    @property
+    def rocket_position(self) -> RocketPosition:
+        return RocketPosition(
+            x=0.,
+            y=self.state[0],
+            angle=0.
+        )
 
-    def sample_initial_state(self):
-        return np.array([5, 0])
+    @staticmethod
+    def raw_action_to_action(raw_action):
+        return raw_action
 
-    def render(self, mode="human"):
-        screen_width = 200
-        screen_height = 600
-
-        world_height = self.high - self.low
-        scale = screen_height / world_height
-        rocket_width = 20.0
-        rocket_height = 50.0
-
-        if self.viewer is None:
-            from gym.envs.classic_control import rendering
-
-            self.viewer = rendering.Viewer(screen_width, screen_height)
-
-            l, r, t, b = (
-                -rocket_width / 2,
-                rocket_width / 2,
-                rocket_height / 2,
-                -rocket_height / 2,
-            )
-            rocket = rendering.FilledPolygon([(l, b), (l, t), (r, t), (r, b)])
-            self.rocket_trans = rendering.Transform()
-            rocket.add_attr(self.rocket_trans)
-            self.viewer.add_geom(rocket)
-
-        if self.state is None:
-            return
-
-        rocket_bottom_pos = self.state[0] * scale + rocket_height / 2
-        self.rocket_trans.set_translation(screen_width / 2, rocket_bottom_pos)
-
-        return self.viewer.render(return_rgb_array=mode == 'rgb_array')
+    def render_exhausts(self, action):
+        exhaust = self._exhausts[0]
+        if action[0]:
+            exhaust.set_color(0., 0., 0.)
+        else:
+            exhaust.set_color(1., 1., 1.)

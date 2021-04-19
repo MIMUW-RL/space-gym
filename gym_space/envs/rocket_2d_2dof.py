@@ -1,97 +1,64 @@
 import numpy as np
-from .classical_mechanics import ClassicalMechanicsEnv
+from .rocket_landing import RocketLanding, RocketPosition
 
 
-class Rocket2D2DoF(ClassicalMechanicsEnv):
+class Rocket2D2DoF(RocketLanding):
+    engines_angles = (-np.pi / 2, 0., np.pi / 2)
+    world_width = 10
+    world_height = 10
+
     def __init__(self):
-        self.gravity = 9.8
-        self.mass = 1
-        self.force_mag = np.array([5., 19.4])
-        self.fuel_penalty = 1.0
-        self.viewer = None
-        self.rocket_trans = None
         self.x_low, self.x_high = -5.0, 5.0
         self.y_low, self.y_high = 0.0, 10.0
-
         super().__init__(
             position_lows=np.array([self.x_low, self.y_low]),
             position_highs=np.array([self.x_high, self.y_high]),
+            force_mag=np.array([5., 19.4]),
             n_actions=(3, 2),
-            dt=0.02,
         )
 
-    @staticmethod
-    def action_natural_to_integer(action: np.array):
-        integer_action = action.copy()
-        integer_action[0] -= 1
-        return integer_action
-
     def external_force(self, action: np.array, _state):
-        integer_action = self.action_natural_to_integer(action)
-        force = integer_action.astype(np.float32)
-        force = force * self.force_mag
-        return force
+        return action * self.force_mag
 
     def acceleration(self, x, v, external_force):
         force = external_force.copy()
         force[1] -= self.gravity
         return force / self.mass
 
-    def reward(self, action):
-        integer_action = self.action_natural_to_integer(action)
-        reward = 0.0
-        if np.any(integer_action):
-            reward -= self.fuel_penalty
-
-        if self.done:
-            x, y, v_x, v_y = self.state
-            if y <= self.y_low or np.isclose(y, self.y_low):
-                reward -= np.abs(x) * 100  # rocket should land on x = 0
-                # no penalty for vertical speed if not going downward
-                v_y = min(v_y, 0)
-                reward -= min(np.expm1(-v_y + np.abs(v_x)), 1e4)
-            else:
-                reward -= 1e5
-
+    def final_reward(self):
+        x, y, v_x, v_y = self.state
+        if y <= self.y_low or np.isclose(y, self.y_low):
+            reward = np.abs(x) * 100  # rocket should land on x = 0
+            # no penalty for vertical speed if not going downward
+            v_y = min(v_y, 0)
+            reward -= min(np.expm1(-v_y + np.abs(v_x)), 1e4)
+        else:
+            reward = 1e5
         return reward
 
-    # def sample_initial_state(self):
-    #     return np.array([0., 5., 0., 0.])
+    @property
+    def rocket_position(self) -> RocketPosition:
+        x, y = self.state[:2]
+        return RocketPosition(
+            x=x,
+            y=y,
+            angle=0.
+        )
 
-    def render(self, mode="human"):
-        screen_width = 400
-        screen_height = 600
+    @staticmethod
+    def raw_action_to_action(raw_action):
+        raw_action[0] -= 1
+        return raw_action
 
-        world_height = self.x_high - self.x_low
-        world_width = self.y_high - self.y_low
-        scale_x = screen_width / world_width
-        scale_y = screen_height / world_height
-        rocket_width = 25.0
-        rocket_height = 25.0
-
-        if self.viewer is None:
-            from gym.envs.classic_control import rendering
-
-            self.viewer = rendering.Viewer(screen_width, screen_height)
-
-            l, r, t, b = (
-                -rocket_width / 2,
-                rocket_width / 2,
-                rocket_height / 2,
-                -rocket_height / 2,
-            )
-            rocket = rendering.FilledPolygon([(l, b), (l, t), (r, t), (r, b)])
-            self.rocket_trans = rendering.Transform()
-            rocket.add_attr(self.rocket_trans)
-            self.viewer.add_geom(rocket)
-
-        if self.state is None:
-            return
-
-        pos_x, pos_y = self.state[:2]
-        pos_x = (pos_x + world_width / 2) * scale_x
-        # we want rocket's bottom, not middle, to touch the surface
-        pos_y = pos_y * scale_y + rocket_height / 2
-        self.rocket_trans.set_translation(pos_x, pos_y)
-
-        return self.viewer.render(return_rgb_array=mode == "rgb_array")
+    def render_exhausts(self, action):
+        left, middle, right = self._exhausts
+        if action[0] == -1:
+            right.set_color(0, 0, 0)
+            left.set_color(1, 1, 1)
+        else:
+            left.set_color(0, 0, 0)
+            right.set_color(1, 1, 1)
+        if action[1]:
+            middle.set_color(0, 0, 0)
+        else:
+            middle.set_color(1, 1, 1)

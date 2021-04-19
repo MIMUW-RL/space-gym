@@ -1,6 +1,3 @@
-import argparse
-import sys
-
 import gym
 from gym import wrappers, logger
 
@@ -15,8 +12,8 @@ class RandomAgent(object):
 
 
 if __name__ == '__main__':
-    # env_id = 'gym_space:Rocket1D-v0'
-    env_id = 'gym_space:Rocket2D2DoF-v0'
+    env_id = 'gym_space:Rocket1D-v0'
+    # env_id = 'gym_space:Rocket2D2DoF-v0'
     # env_id = 'gym_space:Rocket2D3DoF-v0'
     env = gym.make(env_id)
 

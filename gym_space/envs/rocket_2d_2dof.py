@@ -8,8 +8,8 @@ class Rocket2D2DoF(RocketLanding):
     world_height = 10
 
     def __init__(self):
-        self.x_low, self.x_high = -5.0, 5.0
-        self.y_low, self.y_high = 0.0, 10.0
+        self.x_low, self.x_high = np.inf, np.inf
+        self.y_low, self.y_high = 0.0, np.inf
         super().__init__(
             position_lows=np.array([self.x_low, self.y_low]),
             position_highs=np.array([self.x_high, self.y_high]),
@@ -27,13 +27,13 @@ class Rocket2D2DoF(RocketLanding):
 
     def final_reward(self):
         x, y, v_x, v_y = self.state
-        if y <= self.y_low or np.isclose(y, self.y_low):
+        assert y <= self.y_low or np.isclose(y, self.y_low)
+        reward = 1_000
+
             reward = np.abs(x) * 100  # rocket should land on x = 0
             # no penalty for vertical speed if not going downward
             v_y = min(v_y, 0)
             reward -= min(np.expm1(-v_y + np.abs(v_x)), 1e4)
-        else:
-            reward = 1e5
         return reward
 
     @property

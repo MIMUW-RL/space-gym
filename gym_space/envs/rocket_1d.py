@@ -8,11 +8,12 @@ class Rocket1D(RocketLanding):
     world_height = 10
 
     def __init__(self):
-        self.low, self.high = 0, 10
+        self.low, self.high = 0, np.inf
+        self.fuel_penalty = 1.0
         super().__init__(
             position_lows=self.low,
             position_highs=self.high,
-            force_mag=np.array([19.4]),
+            force_mag=np.array([11.0]),
             n_actions=(2,)
         )
 
@@ -23,16 +24,26 @@ class Rocket1D(RocketLanding):
         force = external_force - self.gravity
         return force / self.mass
 
+    def step_reward(self, action):
+        x = self.state[0]
+        reward = -x * 1e-3
+        if np.any(action):
+            reward -= self.fuel_penalty
+        return reward
+
     def final_reward(self):
         x, v = self.state
-        if x <= self.low or np.isclose(x, self.low):
-            v = min(v, 0)
-            # no penalty if not going downward, exponential otherwise
-            return -min(np.expm1(-v), 1e4)
-        elif x >= self.high or np.isclose(x, self.high):
-            return -1e5
+        assert x <= self.low or np.isclose(x, self.low)
+        reward = 1_000
+        v = abs(v)
+        if v > 10:
+            penalty = min(10**2 + (v - 10), 900)
         else:
-            raise ValueError(x)
+            penalty = v**2
+        return reward - penalty
+
+    def sample_initial_state(self):
+        return np.array([8.0, 5 * self.np_random.normal()])
 
     @property
     def rocket_position(self) -> RocketPosition:

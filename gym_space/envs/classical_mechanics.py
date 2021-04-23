@@ -19,9 +19,9 @@ class ClassicalMechanicsEnv(gym.Env):
         velocities_highs = np.full_like(position_lows, np.inf, dtype=np.float32)
         lows = np.concatenate([position_lows, velocities_lows], dtype=np.float32)
         highs = np.concatenate([position_highs, velocities_highs], dtype=np.float32)
-        self.state_space = spaces.Box(lows, highs)
-        self.state_space_dim = self.state_space.shape[0]
-        assert self.state_space_dim >= 1
+        self.observation_space = spaces.Box(lows, highs)
+        self.observation_space_dim = self.observation_space.shape[0]
+        assert self.observation_space_dim >= 1
         self.angular_pos_nums = angular_pos_nums
 
         def event(threshold, sign, ind, _t, state):
@@ -30,14 +30,16 @@ class ClassicalMechanicsEnv(gym.Env):
         self.terminal_events = []
         for i, (low, high) in enumerate(zip(position_lows, position_highs)):
             if i not in self.angular_pos_nums:
-                self.terminal_events.append(partial(event, low, 1, i))
-                self.terminal_events.append(partial(event, high, -1, i))
+                if np.isfinite(low):
+                    self.terminal_events.append(partial(event, low, 1, i))
+                if np.isfinite(high):
+                    self.terminal_events.append(partial(event, high, -1, i))
         for e in self.terminal_events:
             e.terminal = True
 
-        assert len(n_actions) <= self.state_space_dim
-
-        self.action_space = spaces.MultiDiscrete(n_actions)
+        # self.n_actions = n_actions
+        self._discrete_to_multidiscrete_mapping_array = tuple(np.ndindex(n_actions))
+        self.action_space = spaces.Discrete(np.prod(n_actions))
         self.dt = dt  # seconds between observations
         self.metadata = {"render.modes": ["human", "rgb_array"],
                     "video.frames_per_second": 1/dt}
@@ -49,9 +51,9 @@ class ClassicalMechanicsEnv(gym.Env):
 
     def normalize_angular_positions(self):
         for i in self.angular_pos_nums:
-            self.state[i] -= self.state_space.low[i]
-            self.state[i] %= self.state_space.high[i] - self.state_space.low[i]
-            self.state[i] += self.state_space.low[i]
+            self.state[i] -= self.observation_space.low[i]
+            self.state[i] %= self.observation_space.high[i] - self.observation_space.low[i]
+            self.state[i] += self.observation_space.low[i]
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -68,14 +70,15 @@ class ClassicalMechanicsEnv(gym.Env):
         return self.state
 
     def sample_initial_state(self):
-        return self.state_space.sample()
+        return self.observation_space.sample()
 
     @staticmethod
     def raw_action_to_action(raw_action):
         raise NotImplementedError
 
-    def step(self, raw_action):
-        assert self.action_space.contains(raw_action), f"{raw_action=} invalid"
+    def step(self, one_dim_action):
+        assert self.action_space.contains(one_dim_action), f"{one_dim_action=} invalid"
+        raw_action = np.array(self._discrete_to_multidiscrete_mapping_array[one_dim_action])
         action = self.raw_action_to_action(raw_action)
         self._action = action
 

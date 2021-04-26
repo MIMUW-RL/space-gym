@@ -1,26 +1,44 @@
 from gym.envs.registration import register
+from gym_space.envs.spaceship_env import DEFAULT_MAX_EPISODE_STEPS
+
+# Do not crash
 
 register(
-    id="SpaceshipLand-v0",
-    entry_point="gym_space.envs:SpaceshipLandV0",
-    max_episode_steps=3_600
+    id="SpaceshipDoNotCrashDiscrete-v0",
+    entry_point="gym_space.envs:SpaceshipDoNotCrashDiscreteEnv",
+    max_episode_steps=DEFAULT_MAX_EPISODE_STEPS
 )
 
 register(
+    id="SpaceshipDoNotCrashContinuous-v0",
+    entry_point="gym_space.envs:SpaceshipDoNotCrashContinuousEnv",
+    max_episode_steps=DEFAULT_MAX_EPISODE_STEPS
+)
+
+# Orbit
+
+register(
     id="SpaceshipOrbitDiscrete-v0",
-    entry_point="gym_space.envs:SpaceshipOrbitDiscreteV0",
-    max_episode_steps=3_600
+    entry_point="gym_space.envs:SpaceshipOrbitDiscreteEnv",
+    max_episode_steps=DEFAULT_MAX_EPISODE_STEPS
 )
 
 register(
     id="SpaceshipOrbitContinuous-v0",
-    entry_point="gym_space.envs:SpaceshipOrbitContinuousV0",
-    max_episode_steps=3_600
+    entry_point="gym_space.envs:SpaceshipOrbitContinuousEnv",
+    max_episode_steps=DEFAULT_MAX_EPISODE_STEPS
 )
 
-# no rewards, just to show env with two planets
+# Land
+
 register(
-    id="SpaceshipTwoPlanets-v0",
-    entry_point="gym_space.envs:SpaceshipTwoPlanetsV0",
-    max_episode_steps=3_600
+    id="SpaceshipLandDiscrete-v0",
+    entry_point="gym_space.envs:SpaceshipLandDiscreteEnv",
+    max_episode_steps=DEFAULT_MAX_EPISODE_STEPS
+)
+
+register(
+    id="SpaceshipLandContinuous-v0",
+    entry_point="gym_space.envs:SpaceshipLandContinuousEnv",
+    max_episode_steps=DEFAULT_MAX_EPISODE_STEPS
 )

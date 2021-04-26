@@ -1,6 +1,3 @@
-from .spaceship_env import (
-    SpaceshipLandV0,
-    SpaceshipOrbitDiscreteV0,
-    SpaceshipOrbitContinuousV0,
-    SpaceshipTwoPlanetsV0,
-)
+from .do_not_crash import SpaceshipDoNotCrashDiscreteEnv, SpaceshipDoNotCrashContinuousEnv
+from .orbit import SpaceshipOrbitDiscreteEnv, SpaceshipOrbitContinuousEnv
+from .land import SpaceshipLandDiscreteEnv, SpaceshipLandContinuousEnv

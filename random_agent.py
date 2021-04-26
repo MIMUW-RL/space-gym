@@ -12,10 +12,14 @@ class RandomAgent(object):
 
 
 if __name__ == '__main__':
-    env_id = 'gym_space:SpaceshipOrbitContinuous-v0'
-    # env_id = 'gym_space:SpaceshipOrbitDiscrete-v0'
-    # env_id = 'gym_space:SpaceshipLand-v0'
-    # env_id = 'gym_space:SpaceshipTwoPlanets-v0'
+    env_id = (
+        'gym_space:SpaceshipDoNotCrashDiscrete-v0'
+        # 'gym_space:SpaceshipDoNotCrashContinuous-v0'
+        # 'gym_space:SpaceshipOrbitDiscrete-v0'
+        # 'gym_space:SpaceshipOrbitContinuous-v0'
+        # 'gym_space:SpaceshipLandDiscrete-v0'
+        # 'gym_space:SpaceshipLandContinuous-v0'
+    )
     env = gym.make(env_id)
 
     # You can set the level to logger.DEBUG or logger.WARN if you

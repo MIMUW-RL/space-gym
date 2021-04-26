@@ -1,15 +1,19 @@
+from abc import ABC
+
 import gym
 from gym.spaces import Discrete, Box
 from gym_space.planet import Planet, planets_min_max
 from gym_space.ship import Ship
-from gym_space.action_space import ActionSpaceType
-from gym_space.rewards import Rewards, LandOnPlanetRewards, OrbitPlanetRewards, NoRewards
+from gym_space.rewards import Rewards
 from gym_space.rendering import Renderer
 from gym_space.helpers import angle_to_unit_vector
 from typing import List
 import numpy as np
 from scipy.integrate import solve_ivp
 from functools import partial
+
+DEFAULT_STEP_SIZE = 36.0
+DEFAULT_MAX_EPISODE_STEPS = 1_000
 
 # TODO: seed()
 class SpaceshipEnv(gym.Env):
@@ -19,10 +23,8 @@ class SpaceshipEnv(gym.Env):
         self,
         ship: Ship,
         planets: List[Planet],
-        action_space_type: ActionSpaceType,
         rewards: Rewards,
-        step_size: float,
-        control_thruster: bool = True,
+        step_size: float = DEFAULT_STEP_SIZE,
     ):
         self.ship = ship
         self.planets = planets
@@ -32,10 +34,8 @@ class SpaceshipEnv(gym.Env):
             low=np.array([-np.inf, -np.inf, 0.0, -np.inf, -np.inf, -np.inf]),
             high=np.array([np.inf, np.inf, 2 * np.pi, np.inf, np.inf, np.inf])
         )
-        self.action_space_type = action_space_type
         self.rewards = rewards
         self.rewards.destination_planet = planets[0]
-        self.control_thruster = control_thruster
         self.step_size = step_size
         self.metadata = {
             'render.modes': ['human', 'rgb_array'],
@@ -57,18 +57,7 @@ class SpaceshipEnv(gym.Env):
             self._world_max = planet.center_pos + 4 * planet.radius
 
     def _init_action_space(self):
-        if self.action_space_type is ActionSpaceType.DISCRETE:
-            # engine can be turned on or off: 2 options
-            if self.control_thruster:
-                # thruster can act clockwise, doesn't act or act counter-clockwise: 3 options
-                self.action_space = Discrete(2 * 3)
-            else:
-                self.action_space = Discrete(2)
-        elif self.action_space_type is ActionSpaceType.CONTINUOUS:
-            size = 1
-            if self.control_thruster:
-                size += 1
-            self.action_space = Box(low=-np.ones(size), high=np.ones(size))
+        raise NotImplementedError
 
     def _init_boundary_events(self):
         def event(planet: Planet, _t, state):
@@ -124,45 +113,15 @@ class SpaceshipEnv(gym.Env):
         self.state[2] %= 2 * np.pi
 
     @staticmethod
-    def _translate_raw_discrete_action(discrete_action: int):
-        engine_action = float(discrete_action % 2)
-        thruster_action = float(discrete_action // 2 - 1)
-        return np.array([engine_action, thruster_action])
-
-    @staticmethod
-    def _translate_raw_continuous_action(continuous_action: np.array):
-        engine_action, thruster_action = continuous_action
-        # [-1, 1] -> [0, 1]
-        engine_action = (engine_action + 1) / 2
-        return np.array([engine_action, thruster_action])
+    def _translate_raw_action(raw_action):
+        raise NotImplementedError
 
     def _sample_initial_state(self):
-        try_nr = 0
-        while True:
-            if try_nr > 100:
-                raise ValueError("Could not find correct initial state")
-            try_nr += 1
-            pos_xy = np.random.uniform(low=self._world_min, high=self._world_max)
-            for planet in self.planets:
-                if planet.distance(pos_xy) < 0:
-                    break
-                if np.linalg.norm(planet.gravity(pos_xy, self.ship.mass)) > self.ship.max_engine_force:
-                    break
-            else:
-                break
-        pos_angle = np.random.uniform(0, 2 * np.pi)
-        velocities_xy = np.random.normal(size=2) * 10
-        velocity_angle = 0.0
-        return np.array([*pos_xy, pos_angle, *velocities_xy, velocity_angle])
+        raise NotImplementedError
 
     def step(self, raw_action):
         assert self.action_space.contains(raw_action), raw_action
-        if self.action_space_type is ActionSpaceType.DISCRETE:
-            action = self._translate_raw_discrete_action(raw_action)
-        elif self.action_space_type is ActionSpaceType.CONTINUOUS:
-            action = self._translate_raw_continuous_action(raw_action)
-        else:
-            raise ValueError(raw_action)
+        action = self._translate_raw_action(raw_action)
         self.last_action = action
 
         done = self._update_state(action)
@@ -183,80 +142,26 @@ class SpaceshipEnv(gym.Env):
         return self._renderer.render(self.state[:3], engine_active, mode)
 
 
-class SpaceshipLandV0(SpaceshipEnv):
-    def __init__(self):
-        MAX_EPISODE_SECONDS = 3_600
-        STEP_SIZE = 1.0
-        MAX_EPISODE_STEPS = int(MAX_EPISODE_SECONDS / STEP_SIZE)
-        PLANETS = [Planet(center_pos=np.zeros(2), mass=5.972e24, radius=6.371e6)]
-        SHIP = Ship(mass=5.5e4, moi=1, max_engine_force=7.607e6, max_thruster_torque=1e-2)
-        REWARDS = LandOnPlanetRewards(
-            destination_reward=10_000,
-            max_destination_distance_penalty=400,
-            max_reasonable_distance=5e6,
-            max_fuel_penalty=100,
-            max_landing_velocity_penalty=2_500,
-            max_landing_angle_penalty=2_500,
-            max_episode_steps=MAX_EPISODE_STEPS
-        )
+class DiscreteSpaceshipEnv(SpaceshipEnv):
+    def _init_action_space(self):
+        # engine can be turned on or off: 2 options
+        # thruster can act clockwise, doesn't act or act counter-clockwise: 3 options
+        self.action_space = Discrete(2 * 3)
 
-        super().__init__(
-            ship=SHIP,
-            planets=PLANETS,
-            action_space_type=ActionSpaceType.DISCRETE,
-            rewards=REWARDS,
-            step_size=STEP_SIZE
-        )
+    @staticmethod
+    def _translate_raw_action(raw_action: int):
+        engine_action = float(raw_action % 2)
+        thruster_action = float(raw_action // 2 - 1)
+        return np.array([engine_action, thruster_action])
 
 
-class SpaceshipOrbitEnv(SpaceshipEnv):
-    def __init__(self, action_space_type: ActionSpaceType):
-        step_size = 10.0
-        planet = Planet(center_pos=np.zeros(2), mass=5.972e24, radius=6.371e6)
-        ship = Ship(mass=1e4, moi=1, max_engine_force=1e5, max_thruster_torque=1e-5)
-        rewards = OrbitPlanetRewards(planet, step_size)
+class ContinuousSpaceshipEnv(SpaceshipEnv):
+    def _init_action_space(self):
+        self.action_space = Box(low=-np.ones(2), high=np.ones(2))
 
-        super().__init__(
-            ship=ship,
-            planets=[planet],
-            action_space_type=action_space_type,
-            rewards=rewards,
-            step_size=step_size
-        )
-
-    def _sample_initial_state(self):
-        planet_angle = np.random.uniform(0, 2 * np.pi)
-        ship_angle = (planet_angle - np.pi/2) % (2 * np.pi)
-        pos_xy = angle_to_unit_vector(planet_angle) * self.planets[0].radius * 1.3
-        velocities_xy = - angle_to_unit_vector(ship_angle) * 5e3
-        return np.array([*pos_xy, ship_angle, *velocities_xy, 0.0])
-
-
-class SpaceshipOrbitDiscreteV0(SpaceshipOrbitEnv):
-    def __init__(self):
-        super().__init__(ActionSpaceType.DISCRETE)
-
-
-class SpaceshipOrbitContinuousV0(SpaceshipOrbitEnv):
-    def __init__(self):
-        super().__init__(ActionSpaceType.CONTINUOUS)
-
-
-# no rewards, just to show env with two planets
-class SpaceshipTwoPlanetsV0(SpaceshipEnv):
-    def __init__(self):
-        STEP_SIZE = 10.0
-        PLANETS = [
-            Planet(center_pos=np.ones(2) * 2e7, mass=5.972e24, radius=6.371e6),
-            Planet(center_pos=-np.ones(2) * 2e7, mass=2e24, radius=4e6),
-        ]
-        SHIP = Ship(mass=1e4, moi=1, max_engine_force=1e5, max_thruster_torque=1e-5)
-        REWARDS = NoRewards()
-
-        super().__init__(
-            ship=SHIP,
-            planets=PLANETS,
-            action_space_type=ActionSpaceType.DISCRETE,
-            rewards=REWARDS,
-            step_size=STEP_SIZE
-        )
+    @staticmethod
+    def _translate_raw_action(raw_action: np.array):
+        engine_action, thruster_action = raw_action
+        # [-1, 1] -> [0, 1]
+        engine_action = (engine_action + 1) / 2
+        return np.array([engine_action, thruster_action])

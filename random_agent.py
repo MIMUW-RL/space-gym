@@ -12,9 +12,9 @@ class RandomAgent(object):
 
 
 if __name__ == '__main__':
-    # env_id = 'gym_space:SpaceshipOrbitContinuous-v0'
+    env_id = 'gym_space:SpaceshipOrbitContinuous-v0'
     # env_id = 'gym_space:SpaceshipOrbitDiscrete-v0'
-    env_id = 'gym_space:SpaceshipLand-v0'
+    # env_id = 'gym_space:SpaceshipLand-v0'
     # env_id = 'gym_space:SpaceshipTwoPlanets-v0'
     env = gym.make(env_id)
 

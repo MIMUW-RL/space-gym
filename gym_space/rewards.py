@@ -16,6 +16,7 @@ class NoRewards(Rewards):
 @dataclass
 class OrbitPlanetRewards(Rewards):
     planet: Planet
+    step_size: float
 
     def reward(self, state: np.array, action: np.array, done: bool):
         ship_xy = state[:2]
@@ -24,7 +25,7 @@ class OrbitPlanetRewards(Rewards):
         ship_velocity_xy_angle = vector_to_angle(ship_velocity_xy)
         angle_diff = (ship_velocity_xy_angle - ship_planet_angle) % (2 * np.pi)
         angular_velocity_around_planet = np.sin(angle_diff) * np.linalg.norm(ship_velocity_xy)
-        return angular_velocity_around_planet
+        return angular_velocity_around_planet / (self.step_size * 1e3)
 
 @dataclass
 class LandOnPlanetRewards(Rewards):

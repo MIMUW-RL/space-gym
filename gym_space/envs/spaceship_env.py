@@ -65,11 +65,10 @@ class SpaceshipEnv(gym.Env):
             else:
                 self.action_space = Discrete(2)
         elif self.action_space_type is ActionSpaceType.CONTINUOUS:
-            # engine action is in [0, 1], thruster action in [-1, 1]
+            size = 1
             if self.control_thruster:
-                self.action_space = Box(low=np.array([0.0, -1.0]), high=np.array([1.0, 1.0]))
-            else:
-                self.action_space = Box(low=np.array([0.0]), high=np.array([1.0]))
+                size += 1
+            self.action_space = Box(low=-np.ones(size), high=np.ones(size))
 
     def _init_boundary_events(self):
         def event(planet: Planet, _t, state):
@@ -125,9 +124,16 @@ class SpaceshipEnv(gym.Env):
         self.state[2] %= 2 * np.pi
 
     @staticmethod
-    def _discrete_to_continuous_action(discrete_action: int):
+    def _translate_raw_discrete_action(discrete_action: int):
         engine_action = float(discrete_action % 2)
         thruster_action = float(discrete_action // 2 - 1)
+        return np.array([engine_action, thruster_action])
+
+    @staticmethod
+    def _translate_raw_continuous_action(continuous_action: np.array):
+        engine_action, thruster_action = continuous_action
+        # [-1, 1] -> [0, 1]
+        engine_action = (engine_action + 1) / 2
         return np.array([engine_action, thruster_action])
 
     def _sample_initial_state(self):
@@ -149,12 +155,14 @@ class SpaceshipEnv(gym.Env):
         velocity_angle = 0.0
         return np.array([*pos_xy, pos_angle, *velocities_xy, velocity_angle])
 
-    def step(self, action_):
-        assert self.action_space.contains(action_)
+    def step(self, raw_action):
+        assert self.action_space.contains(raw_action), raw_action
         if self.action_space_type is ActionSpaceType.DISCRETE:
-            action = self._discrete_to_continuous_action(action_)
+            action = self._translate_raw_discrete_action(raw_action)
+        elif self.action_space_type is ActionSpaceType.CONTINUOUS:
+            action = self._translate_raw_continuous_action(raw_action)
         else:
-            action = action_
+            raise ValueError(raw_action)
         self.last_action = action
 
         done = self._update_state(action)
@@ -203,17 +211,17 @@ class SpaceshipLandV0(SpaceshipEnv):
 
 class SpaceshipOrbitEnv(SpaceshipEnv):
     def __init__(self, action_space_type: ActionSpaceType):
-        STEP_SIZE = 10.0
-        PLANETS = [Planet(center_pos=np.zeros(2), mass=5.972e24, radius=6.371e6)]
-        SHIP = Ship(mass=1e4, moi=1, max_engine_force=1e5, max_thruster_torque=1e-5)
-        REWARDS = OrbitPlanetRewards(PLANETS[0])
+        step_size = 10.0
+        planet = Planet(center_pos=np.zeros(2), mass=5.972e24, radius=6.371e6)
+        ship = Ship(mass=1e4, moi=1, max_engine_force=1e5, max_thruster_torque=1e-5)
+        rewards = OrbitPlanetRewards(planet, step_size)
 
         super().__init__(
-            ship=SHIP,
-            planets=PLANETS,
+            ship=ship,
+            planets=[planet],
             action_space_type=action_space_type,
-            rewards=REWARDS,
-            step_size=STEP_SIZE
+            rewards=rewards,
+            step_size=step_size
         )
 
     def _sample_initial_state(self):

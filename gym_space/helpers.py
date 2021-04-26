@@ -1,10 +1,15 @@
 import numpy as np
 
 
-def square_linear_const(error_arr: np.array, const: float, const_from: float):
-    error = np.linalg.norm(error_arr)
-    if error < square_to:
-        return error ** 2
-    if error < linear_to:
-        return square_to ** 2 + 2 * square_to * (error - square_to)
-    return square_to ** 2 + 2 * square_to * (linear_to - square_to)
+def bounded_linear(x: np.array, upper_bound: float):
+    return x / (1 + (1/upper_bound) * x)
+
+
+def bounded_square(x: np.array, upper_bound: float):
+    return bounded_linear(x ** 2, upper_bound)
+
+def angle_to_unit_vector(angle: float) -> np.array:
+    return np.array([np.cos(angle), np.sin(angle)])
+
+def vector_to_angle(vector: np.array) -> float:
+    return np.arctan2(vector[1], vector[0])

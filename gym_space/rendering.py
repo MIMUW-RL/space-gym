@@ -1,76 +1,109 @@
-from typing import Iterable
+from typing import List
 
 import numpy as np
 from gym.envs.classic_control import rendering
 
-from gym_space.envs.rocket_landing import SCREEN_WIDTH, MARGIN, SCREEN_HEIGHT
+
+from .planet import Planet
+from .helpers import angle_to_unit_vector
+
+MAX_SCREEN_SIZE = np.array([800, 500])
 
 
-def create_rocket_viewer_transform_exhausts(
-    rocket_body_radius: float,
-    engines_angles: Iterable[float],
-):
-    viewer = rendering.Viewer(SCREEN_WIDTH + 2 * MARGIN, SCREEN_HEIGHT + 2 * MARGIN)
-    rocket_transform = rendering.Transform()
+class Renderer:
+    def __init__(
+        self,
+        ship_body_radius: float,
+        planets: List[Planet],
+        world_min: np.array,
+        world_max: np.array,
+    ):
+        self.world_translation = world_min
+        world_size = world_max - world_min
+        self.world_scale = np.min(MAX_SCREEN_SIZE / world_size)
+        screen_size = np.array(world_size * self.world_scale, dtype=np.int64)
+        self.viewer = rendering.Viewer(*screen_size)
+        self.ship_transform = rendering.Transform()
+        self._init_planets(planets)
+        self._init_engine(ship_body_radius)
+        self.exhaust = None
+        self._init_exhaust(ship_body_radius)
+        self._init_ship(ship_body_radius)
 
-    engine_edge_length = rocket_body_radius * 1.7
-    engine_width_angle = np.pi / 4
+    def _init_planets(self, planets: List[Planet]):
+        for planet in planets:
+            # TODO: translate to good position
+            planet_geom = rendering.make_circle(
+                planet.radius * self.world_scale, filled=False
+            )
+            planet_geom.add_attr(
+                rendering.Transform(
+                    translation=self._world_to_screen(planet.center_pos)
+                )
+            )
+            self.viewer.add_geom(planet_geom)
 
-    exhausts = []
-    for engine_angle in engines_angles:
-        engine_left_bottom_angle = engine_angle - engine_width_angle / 2
-        engine_right_bottom_angle = engine_angle + engine_width_angle / 2
-        engine_left_bottom_pos = engine_edge_length * np.array(
-            [np.sin(engine_left_bottom_angle), -np.cos(engine_left_bottom_angle)]
+    def _init_engine(self, ship_body_radius: float):
+        engine_edge_length = ship_body_radius * 1.7
+        engine_width_angle = np.pi / 4
+
+        engine_left_bottom_angle = -engine_width_angle / 2
+        engine_right_bottom_angle = engine_width_angle / 2
+        engine_left_bottom_pos = engine_edge_length * angle_to_unit_vector(
+            engine_left_bottom_angle
         )
-        engine_right_bottom_pos = engine_edge_length * np.array(
-            [np.sin(engine_right_bottom_angle), -np.cos(engine_right_bottom_angle)]
+        engine_right_bottom_pos = engine_edge_length * angle_to_unit_vector(
+            engine_right_bottom_angle
         )
         engine = rendering.FilledPolygon(
             [(0.0, 0.0), engine_left_bottom_pos, engine_right_bottom_pos]
         )
-        engine.add_attr(rocket_transform)
-        viewer.add_geom(engine)
+        engine.add_attr(self.ship_transform)
+        self.viewer.add_geom(engine)
 
-        exhausts_begin_radius = rocket_body_radius * 1.9
-        exhausts_end_radius = rocket_body_radius * 2.2
+    def _init_exhaust(self, ship_body_radius: float):
+        engine_width_angle = np.pi / 4
+        exhaust_begin_radius = ship_body_radius * 1.9
+        exhaust_end_radius = ship_body_radius * 2.2
 
         flames = []
         for flame_angle in np.linspace(
-            engine_angle - engine_width_angle / 4,
-            engine_angle + engine_width_angle / 4,
+            -engine_width_angle / 4,
+            engine_width_angle / 4,
             3,
         ):
-            tmp = np.array([np.sin(flame_angle), -np.cos(flame_angle)])
-            flame = rendering.Line(
-                exhausts_begin_radius * tmp, exhausts_end_radius * tmp
-            )
+            vec = angle_to_unit_vector(flame_angle)
+            flame = rendering.Line(exhaust_begin_radius * vec, exhaust_end_radius * vec)
             flames.append(flame)
 
-        exhaust = rendering.Compound(flames)
-        exhaust.add_attr(rocket_transform)
-        viewer.add_geom(exhaust)
-        exhausts.append(exhaust)
+        self.exhaust = rendering.Compound(flames)
+        self.exhaust.add_attr(self.ship_transform)
+        self.viewer.add_geom(self.exhaust)
 
-    rocket_body = rendering.make_circle(rocket_body_radius, filled=True)
-    rocket_body.set_color(1.0, 1.0, 1.0)
-    rocket_body.add_attr(rocket_transform)
-    viewer.add_geom(rocket_body)
+    def _init_ship(self, ship_body_radius: float):
+        ship_body = rendering.make_circle(ship_body_radius, filled=True)
+        ship_body.set_color(1.0, 1.0, 1.0)
+        ship_body.add_attr(self.ship_transform)
+        self.viewer.add_geom(ship_body)
 
-    rocket_body_outline = rendering.make_circle(rocket_body_radius, filled=False)
-    rocket_body_outline.add_attr(rocket_transform)
-    viewer.add_geom(rocket_body_outline)
+        ship_body_outline = rendering.make_circle(ship_body_radius, filled=False)
+        ship_body_outline.add_attr(self.ship_transform)
+        self.viewer.add_geom(ship_body_outline)
 
-    rocket_body_middle = rendering.Point()
-    rocket_body_middle.add_attr(rocket_transform)
-    rocket_body_middle.set_color(.5, .5, .5)
-    viewer.add_geom(rocket_body_middle)
+        ship_body_middle = rendering.Point()
+        ship_body_middle.add_attr(self.ship_transform)
+        ship_body_middle.set_color(0.5, 0.5, 0.5)
+        self.viewer.add_geom(ship_body_middle)
 
-    world_border = rendering.Line(
-        (0, MARGIN),
-        (SCREEN_WIDTH + 2 * MARGIN, MARGIN)
-    )
-    world_border.set_color(.5, .5, .5)
-    viewer.add_geom(world_border)
+    def _world_to_screen(self, world_pos: np.array):
+        return self.world_scale * (world_pos - self.world_translation)
 
-    return viewer, exhausts, rocket_transform
+    def render(self, ship_world_position: np.array, engine_active: bool, mode: str):
+        ship_screen_position = self._world_to_screen(ship_world_position[:2])
+        self.ship_transform.set_translation(*ship_screen_position)
+        self.ship_transform.set_rotation(ship_world_position[2])
+        if engine_active:
+            self.exhaust.set_color(0.0, 0.0, 0.0)
+        else:
+            self.exhaust.set_color(1.0, 1.0, 1.0)
+        return self.viewer.render(mode == "rgb_array")

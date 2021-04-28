@@ -22,7 +22,7 @@ class LandRewards(Rewards):
     max_fuel_penalty: float
     max_landing_velocity_penalty: float
     max_landing_angle_penalty: float
-    destination_planet: Planet = None
+    destination_planet: Planet
     max_episode_steps: int = DEFAULT_MAX_EPISODE_STEPS
 
     def _destination_distance(self, state):
@@ -85,6 +85,7 @@ class SpaceshipLandEnv(SpaceshipEnv, ABC):
             max_fuel_penalty=100,
             max_landing_velocity_penalty=2_500,
             max_landing_angle_penalty=2_500,
+            destination_planet=planet
         )
 
         super().__init__(

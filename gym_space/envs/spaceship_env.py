@@ -35,7 +35,6 @@ class SpaceshipEnv(gym.Env):
             high=np.array([np.inf, np.inf, 2 * np.pi, np.inf, np.inf, np.inf])
         )
         self.rewards = rewards
-        self.rewards.destination_planet = planets[0]
         self.step_size = step_size
         self.metadata = {
             'render.modes': ['human', 'rgb_array'],

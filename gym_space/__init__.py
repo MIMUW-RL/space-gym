@@ -1,6 +1,20 @@
 from gym.envs.registration import register
 from gym_space.envs.spaceship_env import DEFAULT_MAX_EPISODE_STEPS
 
+# Go to point
+
+register(
+    id="SpaceshipGoToPlanetDiscrete-v0",
+    entry_point="gym_space.envs:SpaceshipGoToPlanetDiscreteEnv",
+    max_episode_steps=500
+)
+
+register(
+    id="SpaceshipGoToPlanetContinuous-v0",
+    entry_point="gym_space.envs:SpaceshipGoToPlanetContinuousEnv",
+    max_episode_steps=350
+)
+
 # Do not crash
 
 register(

@@ -16,7 +16,7 @@ class SpaceshipDoNotCrashEnv(SpaceshipEnv, ABC):
         super().__init__(
             ship=ship,
             planets=[planet],
-            rewards=ConstantRewards(),
+            rewards=ConstantRewards(1.0),
         )
 
     def _sample_initial_state(self):

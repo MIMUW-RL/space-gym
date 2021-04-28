@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import numpy as np
 
 class Rewards:
@@ -5,6 +6,9 @@ class Rewards:
         raise NotImplementedError
 
 
+@dataclass
 class ConstantRewards(Rewards):
+    reward_value: float
+
     def reward(self, state: np.array, action: np.array, done: bool):
-        return 1.0
+        return self.reward_value

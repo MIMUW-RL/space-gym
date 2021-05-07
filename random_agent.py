@@ -1,6 +1,3 @@
-import argparse
-import sys
-
 import gym
 from gym import wrappers, logger
 
@@ -15,9 +12,16 @@ class RandomAgent(object):
 
 
 if __name__ == '__main__':
-    # env_id = 'gym_space:Rocket1D-v0'
-    env_id = 'gym_space:Rocket2D2DoF-v0'
-    # env_id = 'gym_space:Rocket2D3DoF-v0'
+    env_id = (
+        # 'gym_space:SpaceshipGoToPlanetDiscrete-v0'
+        'gym_space:SpaceshipGoToPlanetContinuous-v0'
+        # 'gym_space:SpaceshipDoNotCrashDiscrete-v0'
+        # 'gym_space:SpaceshipDoNotCrashContinuous-v0'
+        # 'gym_space:SpaceshipOrbitDiscrete-v0'
+        # 'gym_space:SpaceshipOrbitContinuous-v0'
+        # 'gym_space:SpaceshipLandDiscrete-v0'
+        # 'gym_space:SpaceshipLandContinuous-v0'
+    )
     env = gym.make(env_id)
 
     # You can set the level to logger.DEBUG or logger.WARN if you
@@ -40,14 +44,14 @@ if __name__ == '__main__':
     for i in range(episode_count):
         ob = env.reset()
         steps = 0
-        rewards = 0
+        return_ = 0
         while True:
             action = agent.act(ob, reward, done)
             ob, reward, done, _ = env.step(action)
             steps += 1
-            rewards += reward
+            return_ += reward
             if done:
-                print(f"{rewards=}, {steps=}")
+                print(f"{return_=}, {steps=}")
                 break
             # Note there's no env.render() here. But the environment still can open window and
             # render if asked by env.monitor: it calls env.render('rgb_array') to record video.

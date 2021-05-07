@@ -1,3 +1,4 @@
-from gym_space.envs.rocket_1d import Rocket1D
-from gym_space.envs.rocket_2d_2dof import Rocket2D2DoF
-from gym_space.envs.rocket_2d_3dof import Rocket2D3DoF
+from .go_to_planet import SpaceshipGoToPlanetDiscreteEnv, SpaceshipGoToPlanetContinuousEnv
+from .do_not_crash import SpaceshipDoNotCrashDiscreteEnv, SpaceshipDoNotCrashContinuousEnv
+from .orbit import SpaceshipOrbitDiscreteEnv, SpaceshipOrbitContinuousEnv
+from .land import SpaceshipLandDiscreteEnv, SpaceshipLandContinuousEnv

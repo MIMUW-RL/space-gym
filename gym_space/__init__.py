@@ -1,12 +1,27 @@
 from gym.envs.registration import register
 from gym_space.envs.spaceship_env import DEFAULT_MAX_EPISODE_STEPS
 
-# Go to point
+# Hover
+
+register(
+    id="SpaceshipHover1DDiscrete-v0",
+    entry_point="gym_space.envs:SpaceshipHover1DDiscreteEnv",
+    max_episode_steps=300
+)
+
+register(
+    id="SpaceshipHover1DContinuous-v0",
+    entry_point="gym_space.envs:SpaceshipHover1DContinuousEnv",
+    max_episode_steps=300
+)
+
+
+# Go to planet
 
 register(
     id="SpaceshipGoToPlanetDiscrete-v0",
     entry_point="gym_space.envs:SpaceshipGoToPlanetDiscreteEnv",
-    max_episode_steps=500
+    max_episode_steps=350
 )
 
 register(

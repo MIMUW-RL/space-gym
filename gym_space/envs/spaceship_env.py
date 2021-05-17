@@ -17,8 +17,6 @@ DEFAULT_MAX_EPISODE_STEPS = 1_000
 
 # TODO: seed()
 class SpaceshipEnv(gym.Env):
-    """Spaceship starts away from any planet, it's goal is to land on planet nr 0"""
-
     def __init__(
         self,
         ship: Ship,
@@ -38,6 +36,7 @@ class SpaceshipEnv(gym.Env):
         self.step_size = step_size
         self.metadata = {
             'render.modes': ['human', 'rgb_array'],
+            # FIXME: it doesn't work
             'video.frames_per_second': 60 / step_size  # one minute in one second
         }
         self._init_action_space()
@@ -139,6 +138,10 @@ class SpaceshipEnv(gym.Env):
         if self.last_action is not None:
             engine_active = self.last_action[0] > 0.1
         return self._renderer.render(self.state[:3], engine_active, mode)
+
+    @property
+    def viewer(self):
+        return self._renderer.viewer
 
 
 class DiscreteSpaceshipEnv(SpaceshipEnv):

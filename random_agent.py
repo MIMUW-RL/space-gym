@@ -13,8 +13,10 @@ class RandomAgent(object):
 
 if __name__ == '__main__':
     env_id = (
+        'gym_space:SpaceshipHover1DDiscrete-v0'
+        # 'gym_space:SpaceshipHover1DContinuous-v0'
         # 'gym_space:SpaceshipGoToPlanetDiscrete-v0'
-        'gym_space:SpaceshipGoToPlanetContinuous-v0'
+        # 'gym_space:SpaceshipGoToPlanetContinuous-v0'
         # 'gym_space:SpaceshipDoNotCrashDiscrete-v0'
         # 'gym_space:SpaceshipDoNotCrashContinuous-v0'
         # 'gym_space:SpaceshipOrbitDiscrete-v0'

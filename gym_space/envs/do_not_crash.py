@@ -20,7 +20,7 @@ class SpaceshipDoNotCrashEnv(SpaceshipEnv, ABC):
         )
 
     def _sample_initial_state(self):
-        planet_angle = np.random.uniform(0, 2 * np.pi)
+        planet_angle = self._np_random.uniform(0, 2 * np.pi)
         ship_angle = (planet_angle + (4/3) * np.pi) % (2 * np.pi)
         pos_xy = angle_to_unit_vector(planet_angle) * self.planets[0].radius * 1.3
         velocities_xy = - angle_to_unit_vector(ship_angle) * 2e3

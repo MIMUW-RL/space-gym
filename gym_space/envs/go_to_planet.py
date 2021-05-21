@@ -63,7 +63,7 @@ class SpaceshipGoToPlanetEnv(SpaceshipEnv, ABC):
         self._world_max = np.full(2, 15.0)
 
     def _sample_initial_state(self):
-        point_angle, ship_angle = np.random.uniform(0, 2 * np.pi, size=2)
+        point_angle, ship_angle = self._np_random.uniform(0, 2 * np.pi, size=2)
         pos_xy = angle_to_unit_vector(point_angle) * 7.5
         velocities = np.zeros(3)
         return np.array([*pos_xy, ship_angle, *velocities])

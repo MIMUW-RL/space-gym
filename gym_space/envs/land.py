@@ -100,7 +100,7 @@ class SpaceshipLandEnv(SpaceshipEnv, ABC):
             if try_nr > 100:
                 raise ValueError("Could not find correct initial state")
             try_nr += 1
-            pos_xy = np.random.uniform(low=self._world_min, high=self._world_max)
+            pos_xy = self._np_random.uniform(low=self._world_min, high=self._world_max)
             for planet in self.planets:
                 if planet.distance(pos_xy) < 0:
                     break
@@ -109,8 +109,8 @@ class SpaceshipLandEnv(SpaceshipEnv, ABC):
                     break
             else:
                 break
-        pos_angle = np.random.uniform(0, 2 * np.pi)
-        velocities_xy = np.random.normal(size=2) * 10
+        pos_angle = self._np_random.uniform(0, 2 * np.pi)
+        velocities_xy = self._np_random.normal(size=2) * 10
         velocity_angle = 0.0
         return np.array([*pos_xy, pos_angle, *velocities_xy, velocity_angle])
 

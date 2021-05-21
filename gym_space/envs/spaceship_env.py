@@ -15,7 +15,6 @@ from functools import partial
 DEFAULT_STEP_SIZE = 36.0
 DEFAULT_MAX_EPISODE_STEPS = 1_000
 
-# TODO: seed()
 class SpaceshipEnv(gym.Env):
     def __init__(
         self,
@@ -23,6 +22,7 @@ class SpaceshipEnv(gym.Env):
         planets: List[Planet],
         rewards: Rewards,
         step_size: float = DEFAULT_STEP_SIZE,
+        max_episode_steps: int = DEFAULT_MAX_EPISODE_STEPS
     ):
         self.ship = ship
         self.planets = planets
@@ -45,6 +45,10 @@ class SpaceshipEnv(gym.Env):
         self.state = None
         self.last_action = None
         self._renderer = None
+        self.max_episode_steps = max_episode_steps
+        self.elapsed_steps = None
+        self._np_random = None
+        self.seed()
 
     def _init_world_min_max(self):
         if len(self.planets) > 1:
@@ -118,16 +122,21 @@ class SpaceshipEnv(gym.Env):
         raise NotImplementedError
 
     def step(self, raw_action):
+        assert self.elapsed_steps is not None, "Cannot call env.step() before calling reset()"
         assert self.action_space.contains(raw_action), raw_action
         action = self._translate_raw_action(raw_action)
         self.last_action = action
 
         done = self._update_state(action)
+        self.elapsed_steps += 1
+        if self.elapsed_steps >= self.max_episode_steps:
+            done = True
         reward = self.rewards.reward(self.state, action, done)
         return self.state, reward, done, {}
 
     def reset(self):
         self.state = self._sample_initial_state()
+        self.elapsed_steps = 0
         return self.state
 
     def render(self, mode="human"):
@@ -138,6 +147,10 @@ class SpaceshipEnv(gym.Env):
         if self.last_action is not None:
             engine_active = self.last_action[0] > 0.1
         return self._renderer.render(self.state[:3], engine_active, mode)
+
+    def seed(self, seed=None):
+        self._np_random, seed = gym.utils.seeding.np_random(seed)
+        return [seed]
 
     @property
     def viewer(self):

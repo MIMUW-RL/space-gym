@@ -87,9 +87,9 @@ if __name__ == "__main__":
     print(f"{cores=}")
 
     NET_SHAPES = [(1, 3), (1, 6), (2, 2), (2, 4), (2, 6)]
-    STEP_SIZES = [5, 10, 15, 20, 25, 30]
+    STEP_SIZES = [5, 10, 15, 20]
     EPOCHS = 100
-    ACTION_NOISES = [0.025, 0.05, 0.1, 0.2, 0.3]
+    ACTION_NOISES = [0.05, 0.1, 0.2]
     SEEDS = tuple(range(10))
 
     configs = []

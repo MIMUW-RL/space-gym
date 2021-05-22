@@ -28,7 +28,7 @@ class Hover1DRewards(Rewards):
         return step_score * 100 / self.max_episode_steps
 
 
-class SpaceshipHover1DEnv(SpaceshipEnv, ABC):
+class Hover1DEnv(SpaceshipEnv, ABC):
     def __init__(
         self,
         *,
@@ -71,9 +71,9 @@ class SpaceshipHover1DEnv(SpaceshipEnv, ABC):
         return np.array([x, y, angle, *velocities])
 
 
-class SpaceshipHover1DDiscreteEnv(SpaceshipHover1DEnv, DiscreteSpaceshipEnv):
+class Hover1DDiscreteEnv(Hover1DEnv, DiscreteSpaceshipEnv):
     pass
 
 
-class SpaceshipHover1DContinuousEnv(SpaceshipHover1DEnv, ContinuousSpaceshipEnv):
+class Hover1DContinuousEnv(Hover1DEnv, ContinuousSpaceshipEnv):
     pass

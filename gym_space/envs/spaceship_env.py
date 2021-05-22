@@ -5,7 +5,6 @@ from gym.spaces import Discrete, Box
 from gym_space.planet import Planet, planets_min_max
 from gym_space.ship import Ship
 from gym_space.rewards import Rewards
-from gym_space.rendering import Renderer
 from gym_space.helpers import angle_to_unit_vector
 from typing import List
 import numpy as np
@@ -141,6 +140,7 @@ class SpaceshipEnv(gym.Env):
 
     def render(self, mode="human"):
         if self._renderer is None:
+            from gym_space.rendering import Renderer
             self._renderer = Renderer(15, self.planets, self._world_min, self._world_max)
 
         engine_active = False

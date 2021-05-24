@@ -6,6 +6,9 @@ import neptune.new as neptune
 import hashlib
 import json
 import multiprocessing
+import torch
+# inefficient parallelization on AMD CPUs
+torch.set_num_threads(1)
 print()
 
 
@@ -34,7 +37,7 @@ def make_experiment_hash(model_hyperparams, env_params):
 
 
 def run_experiment(conf: dict):
-    run = neptune.init(project="kajetan.janiak/hover1d-ddpg")
+    run = neptune.init(project="kajetan.janiak/hover1d-ddpg-test")
     env_params = dict(
         planet_radius=10.0,
         planet_mass=5e7,
@@ -86,17 +89,17 @@ if __name__ == "__main__":
     cores = min(args.cores, cpu_count)
     print(f"{cores=}")
 
-    NET_SHAPES = [(1, 3), (1, 6), (2, 2), (2, 4), (2, 6)]
-    STEP_SIZES = [5, 10, 15, 20]
+    NET_SHAPES = [(2, 4), (2, 6), (1, 6)]
+    STEP_SIZES = [10, 15, 5, 20]
     EPOCHS = 100
-    ACTION_NOISES = [0.05, 0.1, 0.2]
+    ACTION_NOISES = [0.2, 0.05, 0.1]
     SEEDS = tuple(range(10))
 
     configs = []
-    for net_shape in NET_SHAPES:
-        for step_size in STEP_SIZES:
-            for action_noise in ACTION_NOISES:
-                for seed in SEEDS:
+    for seed in SEEDS:
+        for net_shape in NET_SHAPES:
+            for step_size in STEP_SIZES:
+                for action_noise in ACTION_NOISES:
                     configs.append(
                         dict(
                             net_shape=net_shape,

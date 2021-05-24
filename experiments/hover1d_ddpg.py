@@ -37,7 +37,8 @@ def make_experiment_hash(model_hyperparams, env_params):
 
 
 def run_experiment(conf: dict):
-    run = neptune.init(project="kajetan.janiak/hover1d-ddpg-test")
+    test_run_str = '-test' if args.test_run else ''
+    run = neptune.init(project=f"kajetan.janiak/hover1d-ddpg{test_run_str}")
     env_params = dict(
         planet_radius=10.0,
         planet_mass=5e7,
@@ -85,6 +86,7 @@ if __name__ == "__main__":
     cpu_count = multiprocessing.cpu_count()
     parser.add_argument('-c', '--cores', type=int, default=int(0.8 * cpu_count))
     parser.add_argument('--dry_run', action='store_true')
+    parser.add_argument('--test_run', action='store_true')
     args = parser.parse_args()
     cores = min(args.cores, cpu_count)
     print(f"{cores=}")

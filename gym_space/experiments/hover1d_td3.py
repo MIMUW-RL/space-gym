@@ -32,7 +32,7 @@ def run_experiment(conf: dict):
         seed=conf["seed"],
         steps_per_epoch=4000,
         epochs=conf["epochs"],
-        replay_size=int(1e6),
+        replay_size=conf["replay_size"],
         gamma=0.99,
         polyak=0.995,
         pi_lr=1e-3,
@@ -73,10 +73,11 @@ if __name__ == "__main__":
     cores = min(args.cores, cpu_count)
     print(f"{cores=}")
 
-    NET_SHAPES = [(2, 6), (3, 3), (3, 4)]
+    NET_SHAPES = [(2, 6)]
     STEP_SIZES = [15]
     EPOCHS = 100
-    ACTION_NOISES = [0.1]
+    ACTION_NOISES = [0.1, 0.25, 0.5]
+    REPLAY_SIZES = [10_000, 30_000, 50_000]
     TARGET_NOISES = [0.2]
     SEEDS = tuple(range(10))
 
@@ -86,16 +87,18 @@ if __name__ == "__main__":
             for step_size in STEP_SIZES:
                 for action_noise in ACTION_NOISES:
                     for target_noise in TARGET_NOISES:
-                        configs.append(
-                            dict(
-                                net_shape=net_shape,
-                                step_size=step_size,
-                                action_noise=action_noise,
-                                target_noise=target_noise,
-                                seed=seed,
-                                epochs=EPOCHS,
+                        for replay_size in REPLAY_SIZES:
+                            configs.append(
+                                dict(
+                                    net_shape=net_shape,
+                                    step_size=step_size,
+                                    action_noise=action_noise,
+                                    target_noise=target_noise,
+                                    seed=seed,
+                                    epochs=EPOCHS,
+                                    replay_size=replay_size
+                                )
                             )
-                        )
     print(f"{len(configs)=}")
     if not args.dry_run:
         with multiprocessing.Pool(cores) as pool:

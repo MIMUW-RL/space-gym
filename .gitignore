@@ -131,3 +131,4 @@ dmypy.json
 
 .idea/
 gym_space/experiments/.neptune/
+notebooks/.neptune/

@@ -12,19 +12,11 @@ class RandomAgent(object):
 
 
 if __name__ == '__main__':
-    env_id = (
-        'gym_space:SpaceshipHover1DDiscrete-v0'
-        # 'gym_space:SpaceshipHover1DContinuous-v0'
-        # 'gym_space:SpaceshipGoToPlanetDiscrete-v0'
-        # 'gym_space:SpaceshipGoToPlanetContinuous-v0'
-        # 'gym_space:SpaceshipDoNotCrashDiscrete-v0'
-        # 'gym_space:SpaceshipDoNotCrashContinuous-v0'
-        # 'gym_space:SpaceshipOrbitDiscrete-v0'
-        # 'gym_space:SpaceshipOrbitContinuous-v0'
-        # 'gym_space:SpaceshipLandDiscrete-v0'
-        # 'gym_space:SpaceshipLandContinuous-v0'
+    from gym_space.envs.hover_1d import Hover1DDiscreteEnv
+    env = Hover1DDiscreteEnv(
+        step_size=15,
+        ship_engine_force=5e-6
     )
-    env = gym.make(env_id)
 
     # You can set the level to logger.DEBUG or logger.WARN if you
     # want to change the amount of output.

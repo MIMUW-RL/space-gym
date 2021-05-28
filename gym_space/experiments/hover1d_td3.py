@@ -20,7 +20,7 @@ def run_experiment(conf: dict):
         planet_radius=10.0,
         planet_mass=5e7,
         ship_mass=0.1,
-        ship_engine_force=7e-6,
+        ship_engine_force=conf['ship_engine_force'],
         step_size=conf["step_size"],
         max_episode_steps=max_episode_steps,
         reward_max_height=3.0,
@@ -76,8 +76,9 @@ if __name__ == "__main__":
     NET_SHAPES = [(2, 6)]
     STEP_SIZES = [15]
     EPOCHS = 100
-    ACTION_NOISES = [0.1, 0.25, 0.5]
-    REPLAY_SIZES = [10_000, 30_000, 50_000]
+    ACTION_NOISES = [0.1]
+    REPLAY_SIZES = [100_000, 200_000, 400_000]
+    SHIP_ENGINE_FORCES = [3e-6, 4.5e-6, 6e-6]
     TARGET_NOISES = [0.2]
     SEEDS = tuple(range(10))
 
@@ -88,17 +89,19 @@ if __name__ == "__main__":
                 for action_noise in ACTION_NOISES:
                     for target_noise in TARGET_NOISES:
                         for replay_size in REPLAY_SIZES:
-                            configs.append(
-                                dict(
-                                    net_shape=net_shape,
-                                    step_size=step_size,
-                                    action_noise=action_noise,
-                                    target_noise=target_noise,
-                                    seed=seed,
-                                    epochs=EPOCHS,
-                                    replay_size=replay_size
+                            for ship_engine_force in SHIP_ENGINE_FORCES:
+                                configs.append(
+                                    dict(
+                                        net_shape=net_shape,
+                                        step_size=step_size,
+                                        action_noise=action_noise,
+                                        target_noise=target_noise,
+                                        seed=seed,
+                                        epochs=EPOCHS,
+                                        replay_size=replay_size,
+                                        ship_engine_force=ship_engine_force
+                                    )
                                 )
-                            )
     print(f"{len(configs)=}")
     if not args.dry_run:
         with multiprocessing.Pool(cores) as pool:

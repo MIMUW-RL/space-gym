@@ -8,7 +8,11 @@ import sys, gym, time
 #
 
 if __name__ == "__main__":
-    env = gym.make('gym_space:SpaceshipHover1DDiscrete-v0' if len(sys.argv)<2 else sys.argv[1])
+    from gym_space.envs.hover_1d import Hover1DDiscreteEnv
+    env = Hover1DDiscreteEnv(
+        step_size=15,
+        ship_engine_force=3e-6
+    )
 
     if not hasattr(env.action_space, 'n'):
         raise Exception('Keyboard agent only supports discrete action spaces')

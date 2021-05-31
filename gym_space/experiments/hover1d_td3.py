@@ -44,7 +44,7 @@ def run_experiment(conf: dict):
         act_noise=conf["action_noise"],
         target_noise=conf["target_noise"],
         noise_clip=0.5,
-        policy_delay=2,
+        policy_delay=conf["policy_delay"],
         num_test_episodes=10,
         max_ep_len=max_episode_steps,
         save_freq=5
@@ -81,7 +81,8 @@ if __name__ == "__main__":
     SHIP_ENGINE_FORCES = [6e-6]
     TARGET_NOISES = [0.2]
     START_STEPS = [30_000]
-    UPDATE_AFTER = [2_000, 3_000, 4_000, 5_000]
+    UPDATE_AFTER = [1_000]
+    POLICY_DELAY = [3, 4, 5]
     SEEDS = tuple(range(10))
 
     configs = []
@@ -94,20 +95,22 @@ if __name__ == "__main__":
                             for ship_engine_force in SHIP_ENGINE_FORCES:
                                 for start_steps in START_STEPS:
                                     for update_after in UPDATE_AFTER:
-                                        configs.append(
-                                            dict(
-                                                net_shape=net_shape,
-                                                step_size=step_size,
-                                                action_noise=action_noise,
-                                                target_noise=target_noise,
-                                                seed=seed,
-                                                epochs=EPOCHS,
-                                                replay_size=replay_size,
-                                                ship_engine_force=ship_engine_force,
-                                                start_steps=start_steps,
-                                                update_after=update_after
+                                        for policy_delay in POLICY_DELAY:
+                                            configs.append(
+                                                dict(
+                                                    net_shape=net_shape,
+                                                    step_size=step_size,
+                                                    action_noise=action_noise,
+                                                    target_noise=target_noise,
+                                                    seed=seed,
+                                                    epochs=EPOCHS,
+                                                    replay_size=replay_size,
+                                                    ship_engine_force=ship_engine_force,
+                                                    start_steps=start_steps,
+                                                    update_after=update_after,
+                                                    policy_delay=policy_delay
+                                                )
                                             )
-                                        )
     print(f"{len(configs)=}")
     if not args.dry_run:
         with multiprocessing.Pool(cores) as pool:

@@ -39,7 +39,7 @@ def run_experiment(conf: dict):
         q_lr=1e-3,
         batch_size=100,
         start_steps=conf["start_steps"],
-        update_after=1000,
+        update_after=conf["update_after"],
         update_every=50,
         act_noise=conf["action_noise"],
         target_noise=conf["target_noise"],
@@ -76,11 +76,12 @@ if __name__ == "__main__":
     NET_SHAPES = [(2, 6)]
     STEP_SIZES = [15]
     EPOCHS = 100
-    ACTION_NOISES = [0.1, 0.2, 0.3]
+    ACTION_NOISES = [0.1]
     REPLAY_SIZES = [400_000]
-    SHIP_ENGINE_FORCES = [5.5e-6, 6e-6]
+    SHIP_ENGINE_FORCES = [6e-6]
     TARGET_NOISES = [0.2]
-    START_STEPS = [30_000, 50_000]
+    START_STEPS = [30_000]
+    UPDATE_AFTER = [2_000, 3_000, 4_000, 5_000]
     SEEDS = tuple(range(10))
 
     configs = []
@@ -92,19 +93,21 @@ if __name__ == "__main__":
                         for replay_size in REPLAY_SIZES:
                             for ship_engine_force in SHIP_ENGINE_FORCES:
                                 for start_steps in START_STEPS:
-                                    configs.append(
-                                        dict(
-                                            net_shape=net_shape,
-                                            step_size=step_size,
-                                            action_noise=action_noise,
-                                            target_noise=target_noise,
-                                            seed=seed,
-                                            epochs=EPOCHS,
-                                            replay_size=replay_size,
-                                            ship_engine_force=ship_engine_force,
-                                            start_steps=start_steps
+                                    for update_after in UPDATE_AFTER:
+                                        configs.append(
+                                            dict(
+                                                net_shape=net_shape,
+                                                step_size=step_size,
+                                                action_noise=action_noise,
+                                                target_noise=target_noise,
+                                                seed=seed,
+                                                epochs=EPOCHS,
+                                                replay_size=replay_size,
+                                                ship_engine_force=ship_engine_force,
+                                                start_steps=start_steps,
+                                                update_after=update_after
+                                            )
                                         )
-                                    )
     print(f"{len(configs)=}")
     if not args.dry_run:
         with multiprocessing.Pool(cores) as pool:

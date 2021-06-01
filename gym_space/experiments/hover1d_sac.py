@@ -79,7 +79,7 @@ if __name__ == "__main__":
     SHIP_ENGINE_FORCES = [6e-6]
     START_STEPS = [30_000]
     UPDATE_AFTER = [1_000]
-    ALPHAS = [0.1, 0.05]
+    ALPHAS = [0.025, 0.012]
     SEEDS = tuple(range(10))
     SAVE_FREQ = 1
 

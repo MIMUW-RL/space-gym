@@ -16,6 +16,7 @@ def run_experiment(conf: dict):
     test_run_str = '-test' if args.test_run else ''
     run = neptune.init(project=f"kajetan.janiak/{EXPERIMENT_NAME}{test_run_str}")
     max_episode_steps = 300
+    hide_dimensions = True
     env_params = dict(
         planet_radius=10.0,
         planet_mass=5e7,
@@ -24,8 +25,10 @@ def run_experiment(conf: dict):
         step_size=conf["step_size"],
         max_episode_steps=max_episode_steps,
         reward_max_height=3.0,
-        reward_partitions=1,
+        reward_partitions=1
     )
+    if hide_dimensions:
+        env_params['hide_dimensions'] = True
     num_layers, layer_size = conf["net_shape"]
     model_hyperparams = dict(
         ac_kwargs=dict(hidden_sizes=[layer_size] * num_layers),

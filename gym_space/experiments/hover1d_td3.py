@@ -47,7 +47,7 @@ def run_experiment(conf: dict):
         policy_delay=conf["policy_delay"],
         num_test_episodes=10,
         max_ep_len=max_episode_steps,
-        save_freq=5
+        save_freq=SAVE_FREQ
     )
     experiment_hash = make_experiment_hash(model_hyperparams, env_params)
     logger_kwargs = setup_logger_kwargs(f"{EXPERIMENT_NAME}-{experiment_hash}", conf["seed"])
@@ -75,15 +75,17 @@ if __name__ == "__main__":
 
     NET_SHAPES = [(2, 6)]
     STEP_SIZES = [15]
-    EPOCHS = 100
+    EPOCHS = 10
     ACTION_NOISES = [0.1]
     REPLAY_SIZES = [400_000]
     SHIP_ENGINE_FORCES = [6e-6]
-    TARGET_NOISES = [0.2]
+    TARGET_NOISES = [0.025, 0.05, 0.075, 0.1]
     START_STEPS = [30_000]
     UPDATE_AFTER = [1_000]
-    POLICY_DELAY = [3, 4, 5]
-    SEEDS = tuple(range(10))
+    POLICY_DELAY = [2]
+    SEEDS = [1, 4, 6, 7]
+    # SEEDS = tuple(range(10))
+    SAVE_FREQ = 1
 
     configs = []
     for seed in SEEDS:

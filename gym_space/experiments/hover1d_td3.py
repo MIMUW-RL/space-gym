@@ -76,13 +76,13 @@ if __name__ == "__main__":
     cores = min(args.cores, cpu_count)
     print(f"{cores=}")
 
-    NET_SHAPES = [(2, 6)]
+    NET_SHAPES = [(2, 6), (2, 8), (3, 4), (2, 10), (3, 5)]
     STEP_SIZES = [15]
-    EPOCHS = 10
+    EPOCHS = 400
     ACTION_NOISES = [0.1]
-    REPLAY_SIZES = [400_000]
+    REPLAY_SIZES = [1_600_000]
     SHIP_ENGINE_FORCES = [6e-6]
-    TARGET_NOISES = [0.025, 0.05, 0.075, 0.1]
+    TARGET_NOISES = [0.2]
     START_STEPS = [30_000]
     UPDATE_AFTER = [1_000]
     POLICY_DELAY = [2]

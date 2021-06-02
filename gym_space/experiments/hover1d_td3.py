@@ -34,7 +34,7 @@ def run_experiment(conf: dict):
     if conf["linear"]:
         ac_kwargs["activation"] = torch.nn.Identity
     model_hyperparams = dict(
-        ac_kwargs=dict(hidden_sizes=[layer_size] * num_layers),
+        ac_kwargs=ac_kwargs,
         seed=conf["seed"],
         steps_per_epoch=4000,
         epochs=conf["epochs"],

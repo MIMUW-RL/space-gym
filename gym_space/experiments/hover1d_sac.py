@@ -74,12 +74,12 @@ if __name__ == "__main__":
 
     NET_SHAPES = [(2, 6)]
     STEP_SIZES = [15]
-    EPOCHS = 100
-    REPLAY_SIZES = [400_000]
+    EPOCHS = 200
+    REPLAY_SIZES = [800_000]
     SHIP_ENGINE_FORCES = [6e-6]
     START_STEPS = [30_000]
     UPDATE_AFTER = [1_000]
-    ALPHAS = [0.025, 0.012]
+    ALPHAS = [0.001, 0.002, 0.005]
     SEEDS = tuple(range(10))
     SAVE_FREQ = 1
 

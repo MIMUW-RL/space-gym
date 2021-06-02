@@ -30,11 +30,8 @@ def run_experiment(conf: dict):
     if hide_dimensions:
         env_params['hide_dimensions'] = True
     num_layers, layer_size = conf["net_shape"]
-    ac_kwargs = dict(hidden_sizes=[layer_size] * num_layers)
-    if conf["linear"]:
-        ac_kwargs["activation"] = torch.nn.Identity
     model_hyperparams = dict(
-        ac_kwargs=ac_kwargs,
+        ac_kwargs=dict(hidden_sizes=[layer_size] * num_layers),
         seed=conf["seed"],
         steps_per_epoch=4000,
         epochs=conf["epochs"],
@@ -55,12 +52,17 @@ def run_experiment(conf: dict):
         max_ep_len=max_episode_steps,
         save_freq=SAVE_FREQ
     )
+    if conf["linear"]:
+        model_hyperparams["linear"] = True
     experiment_hash = make_experiment_hash(model_hyperparams, env_params)
     logger_kwargs = setup_logger_kwargs(f"{EXPERIMENT_NAME}-{experiment_hash}", conf["seed"])
     logger_kwargs["neptune_run"] = run
     model_hyperparams["logger_kwargs"] = logger_kwargs
     run["env/params"] = env_params
     run["model/hyperparams"] = model_hyperparams
+    if "linear" in model_hyperparams:
+        del model_hyperparams["linear"]
+        model_hyperparams["ac_kwargs"]["activation"] = torch.nn.Identity
     run["experiment_hash"] = experiment_hash
     td3(lambda: Hover1DContinuousEnv(**env_params), **model_hyperparams)
     run.stop()
@@ -79,14 +81,14 @@ if __name__ == "__main__":
     cores = min(args.cores, cpu_count)
     print(f"{cores=}")
 
-    # NET_SHAPES = [(2, 6), (2, 8), (3, 4), (2, 10), (3, 5)]
-    NET_SHAPES = [(2, 256)]
-    # EPOCHS = 100
-    EPOCHS = 400
-    # REPLAY_SIZES = [400_000]
-    REPLAY_SIZES = [1_600_000]
-    # LINEAR = True
-    LINEAR = False
+    NET_SHAPES = [(2, 6), (2, 8), (3, 4), (2, 10), (3, 5)]
+    # NET_SHAPES = [(2, 256)]
+    EPOCHS = 100
+    # EPOCHS = 400
+    REPLAY_SIZES = [400_000]
+    # REPLAY_SIZES = [1_600_000]
+    LINEAR = True
+    # LINEAR = False
     STEP_SIZES = [15]
     ACTION_NOISES = [0.1]
     SHIP_ENGINE_FORCES = [6e-6]

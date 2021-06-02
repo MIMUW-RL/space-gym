@@ -30,6 +30,9 @@ def run_experiment(conf: dict):
     if hide_dimensions:
         env_params['hide_dimensions'] = True
     num_layers, layer_size = conf["net_shape"]
+    ac_kwargs = dict(hidden_sizes=[layer_size] * num_layers)
+    if conf["linear"]:
+        ac_kwargs["activation"] = torch.nn.Identity
     model_hyperparams = dict(
         ac_kwargs=dict(hidden_sizes=[layer_size] * num_layers),
         seed=conf["seed"],
@@ -77,15 +80,21 @@ if __name__ == "__main__":
     print(f"{cores=}")
 
     NET_SHAPES = [(2, 6), (2, 8), (3, 4), (2, 10), (3, 5)]
+    # NET_SHAPES = [(2, 256)]
+    EPOCHS = 100
+    # EPOCHS = 400
+    REPLAY_SIZES = [400_000]
+    # REPLAY_SIZES = [1_600_000]
+    LINEAR = True
+    # LINEAR = False
     STEP_SIZES = [15]
-    EPOCHS = 400
     ACTION_NOISES = [0.1]
-    REPLAY_SIZES = [1_600_000]
     SHIP_ENGINE_FORCES = [6e-6]
     TARGET_NOISES = [0.2]
     START_STEPS = [30_000]
     UPDATE_AFTER = [1_000]
     POLICY_DELAY = [2]
+
     SEEDS = tuple(range(10))
     SAVE_FREQ = 1
 
@@ -112,9 +121,11 @@ if __name__ == "__main__":
                                                     ship_engine_force=ship_engine_force,
                                                     start_steps=start_steps,
                                                     update_after=update_after,
-                                                    policy_delay=policy_delay
+                                                    policy_delay=policy_delay,
+                                                    linear=LINEAR
                                                 )
                                             )
+
     print(f"{len(configs)=}")
     if not args.dry_run:
         with multiprocessing.Pool(cores) as pool:

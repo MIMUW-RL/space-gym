@@ -11,7 +11,7 @@ if __name__ == "__main__":
     from gym_space.envs.hover_1d import Hover1DDiscreteEnv
     env = Hover1DDiscreteEnv(
         step_size=15,
-        ship_engine_force=3e-6
+        ship_engine_force=6e-6
     )
 
     if not hasattr(env.action_space, 'n'):
@@ -71,7 +71,7 @@ if __name__ == "__main__":
             while human_sets_pause:
                 env.render()
                 time.sleep(0.1)
-            time.sleep(0.1)
+            time.sleep(0.0511)
         print("timesteps %i reward %0.2f" % (total_timesteps, total_reward))
 
     print("ACTIONS={}".format(ACTIONS))

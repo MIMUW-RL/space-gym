@@ -79,14 +79,14 @@ if __name__ == "__main__":
     cores = min(args.cores, cpu_count)
     print(f"{cores=}")
 
-    NET_SHAPES = [(2, 6), (2, 8), (3, 4), (2, 10), (3, 5)]
-    # NET_SHAPES = [(2, 256)]
-    EPOCHS = 100
-    # EPOCHS = 400
-    REPLAY_SIZES = [400_000]
-    # REPLAY_SIZES = [1_600_000]
-    LINEAR = True
-    # LINEAR = False
+    # NET_SHAPES = [(2, 6), (2, 8), (3, 4), (2, 10), (3, 5)]
+    NET_SHAPES = [(2, 256)]
+    # EPOCHS = 100
+    EPOCHS = 400
+    # REPLAY_SIZES = [400_000]
+    REPLAY_SIZES = [1_600_000]
+    # LINEAR = True
+    LINEAR = False
     STEP_SIZES = [15]
     ACTION_NOISES = [0.1]
     SHIP_ENGINE_FORCES = [6e-6]

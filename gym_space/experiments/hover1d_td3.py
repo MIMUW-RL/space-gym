@@ -25,6 +25,7 @@ def run_experiment(conf: dict):
         max_episode_steps=max_episode_steps,
         reward_max_height=3.0,
         reward_partitions=1,
+        initial_velocity_scale=5e-3
     )
     hide_dimensions = True
     if hide_dimensions:
@@ -48,7 +49,7 @@ def run_experiment(conf: dict):
         target_noise=conf["target_noise"],
         noise_clip=0.5,
         policy_delay=conf["policy_delay"],
-        num_test_episodes=10,
+        num_test_episodes=20,
         max_ep_len=max_episode_steps,
         save_freq=SAVE_FREQ
     )
@@ -81,14 +82,10 @@ if __name__ == "__main__":
     cores = min(args.cores, cpu_count)
     print(f"{cores=}")
 
-    NET_SHAPES = [(2, 6), (2, 8), (3, 4), (2, 10), (3, 5)]
-    # NET_SHAPES = [(2, 256)]
+    NET_SHAPES = [(2, 6)]
     EPOCHS = 100
-    # EPOCHS = 400
     REPLAY_SIZES = [400_000]
-    # REPLAY_SIZES = [1_600_000]
-    LINEAR = True
-    # LINEAR = False
+    LINEAR = False
     STEP_SIZES = [15]
     ACTION_NOISES = [0.1]
     SHIP_ENGINE_FORCES = [6e-6]

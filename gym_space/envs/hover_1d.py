@@ -41,7 +41,8 @@ class Hover1DEnv(SpaceshipEnv, ABC):
         max_episode_steps: int = 300,
         reward_max_height: float = 3.0,
         reward_partitions: int = 1,
-        hide_dimensions: bool = False
+        hide_dimensions: bool = False,
+        initial_velocity_scale: float = 0.0
     ):
         planet = Planet(center_pos=np.zeros(2), mass=planet_mass, radius=planet_radius)
         ship = Ship(
@@ -51,6 +52,7 @@ class Hover1DEnv(SpaceshipEnv, ABC):
             max_thruster_torque=0.0,
         )
         self.hide_dimensions = hide_dimensions
+        self.initial_velocity_scale = initial_velocity_scale
         super().__init__(
             ship=ship,
             planets=[planet],
@@ -74,8 +76,8 @@ class Hover1DEnv(SpaceshipEnv, ABC):
         x = 0.0
         y = self.planets[0].radius + height_above_planet
         angle = 1.5 * np.pi
-        velocities = np.zeros(3)
-        return np.array([x, y, angle, *velocities])
+        velocity = self._np_random.standard_normal() * self.initial_velocity_scale
+        return np.array([x, y, angle, 0.0, velocity,0.0])
 
     def step(self, raw_action):
         state, reward, done, info = super().step(raw_action)

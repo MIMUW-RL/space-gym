@@ -84,8 +84,8 @@ if __name__ == "__main__":
     print(f"{cores=}")
 
     NET_SHAPES = [(2, 6)]
-    EPOCHS = 500
-    REPLAY_SIZES = [2_000_000]
+    EPOCHS = 250
+    REPLAY_SIZES = [1_000_000]
     LINEAR = False
     STEP_SIZES = [15]
     ACTION_NOISES = [0.1, 0.2]
@@ -93,9 +93,10 @@ if __name__ == "__main__":
     TARGET_NOISES = [0.2]
     START_STEPS = [30_000]
     UPDATE_AFTER = [1_000]
+    INITIAL_VELOCITY_SCALES = [0.0, 1e-3, 2e-3, 5e-3]
     POLICY_DELAY = [2]
 
-    SEEDS = tuple(range(20))
+    SEEDS = tuple(range(10))
     SAVE_FREQ = 1
 
     configs = []
@@ -109,22 +110,24 @@ if __name__ == "__main__":
                                 for start_steps in START_STEPS:
                                     for update_after in UPDATE_AFTER:
                                         for policy_delay in POLICY_DELAY:
-                                            configs.append(
-                                                dict(
-                                                    net_shape=net_shape,
-                                                    step_size=step_size,
-                                                    action_noise=action_noise,
-                                                    target_noise=target_noise,
-                                                    seed=seed,
-                                                    epochs=EPOCHS,
-                                                    replay_size=replay_size,
-                                                    ship_engine_force=ship_engine_force,
-                                                    start_steps=start_steps,
-                                                    update_after=update_after,
-                                                    policy_delay=policy_delay,
-                                                    linear=LINEAR
+                                            for initial_velocity_scale in INITIAL_VELOCITY_SCALES:
+                                                configs.append(
+                                                    dict(
+                                                        net_shape=net_shape,
+                                                        step_size=step_size,
+                                                        action_noise=action_noise,
+                                                        target_noise=target_noise,
+                                                        seed=seed,
+                                                        epochs=EPOCHS,
+                                                        replay_size=replay_size,
+                                                        ship_engine_force=ship_engine_force,
+                                                        start_steps=start_steps,
+                                                        update_after=update_after,
+                                                        policy_delay=policy_delay,
+                                                        linear=LINEAR,
+                                                        initial_velocity_scale=initial_velocity_scale
+                                                    )
                                                 )
-                                            )
 
     print(f"{len(configs)=}")
     if not args.dry_run:

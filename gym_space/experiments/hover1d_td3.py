@@ -83,18 +83,18 @@ if __name__ == "__main__":
     print(f"{cores=}")
 
     NET_SHAPES = [(2, 6)]
-    EPOCHS = 100
-    REPLAY_SIZES = [400_000]
+    EPOCHS = 500
+    REPLAY_SIZES = [2_000_000]
     LINEAR = False
     STEP_SIZES = [15]
-    ACTION_NOISES = [0.1]
+    ACTION_NOISES = [0.1, 0.2]
     SHIP_ENGINE_FORCES = [6e-6]
     TARGET_NOISES = [0.2]
     START_STEPS = [30_000]
     UPDATE_AFTER = [1_000]
     POLICY_DELAY = [2]
 
-    SEEDS = tuple(range(10))
+    SEEDS = tuple(range(20))
     SAVE_FREQ = 1
 
     configs = []

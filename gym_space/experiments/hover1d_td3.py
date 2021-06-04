@@ -24,9 +24,10 @@ def run_experiment(conf: dict):
         step_size=conf["step_size"],
         max_episode_steps=max_episode_steps,
         reward_max_height=3.0,
-        reward_partitions=1,
-        initial_velocity_scale=5e-3
+        reward_partitions=1
     )
+    if (vel_scale := conf.get("initial_velocity_scale", 0)) != 0:
+        env_params["initial_velocity_scale"] = vel_scale
     hide_dimensions = True
     if hide_dimensions:
         env_params['hide_dimensions'] = True

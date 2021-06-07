@@ -92,7 +92,7 @@ if __name__ == "__main__":
     cores = min(args.cores, cpu_count)
     print(f"{cores=}")
 
-    NET_SHAPES = [(2, 6)]
+    NET_SHAPES = [(2, 6), (2, 64)]
     EPOCHS = 100
     STEPS_PER_EPOCH = 4_000
     REPLAY_SIZES = [STEPS_PER_EPOCH * EPOCHS]

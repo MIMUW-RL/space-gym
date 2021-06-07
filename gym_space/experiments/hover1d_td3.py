@@ -34,7 +34,7 @@ def run_experiment(conf: dict):
         env_params["hide_dimensions"] = True
     if conf.get("normalize", False):
         env_params["normalize"] = True
-    if (height_limit := conf.get("height_limit", 0)) > 0:
+    if (height_limit := conf.get("height_limit_above_planet", 0)) > 0:
         env_params["height_limit"] = height_limit
     num_layers, layer_size = conf["net_shape"]
     model_hyperparams = dict(
@@ -92,13 +92,13 @@ if __name__ == "__main__":
     cores = min(args.cores, cpu_count)
     print(f"{cores=}")
 
-    NET_SHAPES = [(2, 6), (2, 64)]
-    EPOCHS = 100
+    NET_SHAPES = [(2, 6), (2, 10), (2, 30), (2, 50), (2, 64)]
+    EPOCHS = 250
     STEPS_PER_EPOCH = 4_000
     REPLAY_SIZES = [STEPS_PER_EPOCH * EPOCHS]
     LINEAR = False
     NORMALIZE = True
-    HEIGHT_LIMIT = 15
+    HEIGHT_LIMIT_ABOVE_PLANET = 6
     STEP_SIZES = [15]
     ACTION_NOISES = [0.1]
     SHIP_ENGINE_FORCES = [6e-6]
@@ -142,7 +142,7 @@ if __name__ == "__main__":
                                                         linear=LINEAR,
                                                         initial_velocity_scale=initial_velocity_scale,
                                                         normalize=NORMALIZE,
-                                                        height_limit=HEIGHT_LIMIT
+                                                        height_limit_above_planet=HEIGHT_LIMIT_ABOVE_PLANET
                                                     )
                                                 )
 

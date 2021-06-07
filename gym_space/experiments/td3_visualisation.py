@@ -4,8 +4,6 @@ import numpy as np
 import neptune.new as neptune
 from spinup.algos.pytorch.td3.core import MLPActorCritic, MLPQFunction, MLPActor
 
-import matplotlib.pyplot as plt
-
 
 class TD3ExperimentResults:
     def __init__(
@@ -86,6 +84,23 @@ class TD3ExperimentResults:
         ax.set_xlabel("velocity")
         ax.set_ylabel("position")
         return image
+
+    def plot_obs_density(self, ax):
+        obs_density = np.zeros(self.obs_space.shape[:2])
+        pos_density, vel_density = obs_density.shape
+        min_pos, max_pos = self.obs_space[[0, -1], 0, 0]
+        min_vel, max_vel = self.obs_space[0, [0, -1], 1]
+        obs_buf = self.obs_buf.copy()
+        obs_buf -= np.array([min_pos, min_vel])
+        obs_buf /= np.array([max_pos - min_pos, max_vel - min_vel])
+        obs_buf *= [pos_density, vel_density]
+        obs_buf_ind = obs_buf.astype(int)
+        for ind in obs_buf_ind:
+            obs_density[min(ind[0], pos_density - 1), min(ind[1], vel_density - 1)] += 1
+        obs_density /= np.max(obs_density)
+        return self.plot_values_over_obs_space(ax, obs_density)
+
+
 
     def plot_q1_on_const_action(self, ax, action: float, epoch: int):
         return self.plot_q_on_const_action(ax, 1, action, epoch)

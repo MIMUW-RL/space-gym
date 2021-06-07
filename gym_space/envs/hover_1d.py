@@ -84,23 +84,26 @@ class Hover1DEnv(SpaceshipEnv, ABC):
         return np.array([x, y, angle, 0.0, velocity,0.0])
 
     def _normalize(self, state: np.array):
-        if self.normalize:
-            state[1] -= self.planets[0].radius + self.height_limit / 2
-            state[1] /= self.height_limit / 3
+        state = state.copy()
+        state[1] -= self.planets[0].radius + self.height_limit / 2
+        state[1] /= self.height_limit / 3
+        return state
 
     def step(self, raw_action):
         _, reward, done, info = super().step(raw_action)
         if self.height_limit is not None and (margin := self.state[1] + 1 - self.height_limit) > 0:
             self.state[1] = self.height_limit - 1 + np.tanh(margin)
         state = self.state.copy()
-        self._normalize(state)
+        if self.normalize:
+            state = self._normalize(state)
         if self.hide_dimensions:
             state = state[[1,4]]
         return state, reward, done, info
 
     def reset(self):
         state = super().reset()
-        self._normalize(state)
+        if self.normalize:
+            state = self._normalize(state)
         if self.hide_dimensions:
             return state[[1,4]]
         return state

@@ -55,7 +55,7 @@ def run_experiment(conf: dict):
         target_noise=conf["target_noise"],
         noise_clip=0.5,
         policy_delay=conf["policy_delay"],
-        num_test_episodes=20,
+        num_test_episodes=10,
         max_ep_len=max_episode_steps,
         save_freq=SAVE_FREQ,
     )

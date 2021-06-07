@@ -33,39 +33,36 @@ class TD3ExperimentResults:
             print("obs buf loaded")
         self.planet_radius = neptune_run["env/params/planet_radius"].fetch()
         self.reward_max_height = neptune_run["env/params/reward_max_height"].fetch()
+        try:
+            self.normalize = neptune_run["env/params/normalize"].fetch()
+        except Exception:
+            self.normalize = False
         self.obs_space = None
-        self.pos_lin_density = self.pos_log_density = self.max_pos_linear = None
         self.generate_obs_space(pos_density, vel_density)
         print("obs space generated")
         neptune_run.stop()
 
     def _load_acs(self, neptune_run: neptune.Run):
         if self.completed_epochs < 20:
-            epochs_nrs = range(0, self.completed_epochs, self.model_save_freq)
+            epochs_nrs = range(0, self.completed_epochs + 1, self.model_save_freq)
         else:
             initial_freq = self.model_save_freq
             initial_epochs = self.completed_epochs // 10
             epochs_nrs = list(range(0, initial_epochs, initial_freq))
             freq = max(self.model_save_freq, self.completed_epochs // 20)
-            epochs_nrs += list(range(initial_epochs, self.completed_epochs, freq))
+            epochs_nrs += list(range(initial_epochs, self.completed_epochs + 1, freq))
 
         n_of_epochs = len(epochs_nrs)
         print(f"loading {n_of_epochs} models from neptune...")
         for i, epoch in enumerate(epochs_nrs, start=1):
             self.acs[epoch] = load_ac(neptune_run, epoch)
-            if (i % (n_of_epochs // 5)) == 0:
+            if n_of_epochs < 10 or (i % (n_of_epochs // 5)) == 0:
                 print(f"{i} models loaded")
         print("done")
 
     def generate_obs_space(self, pos_density: int = 50, vel_density: int = 50):
-        max_pos_linear = self.planet_radius + 1.5 * self.reward_max_height
-        (
-            self.obs_space,
-            self.pos_lin_density,
-            self.pos_log_density,
-            self.max_pos_linear,
-        ) = get_observations_space(
-            self.obs_buf, max_pos_linear, pos_density, vel_density
+        self.obs_space = get_observations_space(
+            self.obs_buf, self.normalize, pos_density, vel_density
         )
 
     def plot_values_over_obs_space(self, ax, values: np.array, cmap="Greys", v_min_max = None):
@@ -73,8 +70,7 @@ class TD3ExperimentResults:
         min_vel, max_vel = self.obs_space[0, [0, -1], 1]
         imshow_kwargs = dict(
             origin="lower",
-            # -1, 1 doesn't matter, we override it below
-            extent=(min_vel, max_vel, -0.5, self.obs_space.shape[0] - 0.5),
+            extent=(min_vel, max_vel, min_pos, max_pos),
             aspect="auto",
             cmap=cmap
         )
@@ -87,22 +83,6 @@ class TD3ExperimentResults:
                 values,
                 **imshow_kwargs
             )
-            lin_ytick_labels = np.arange(
-                0, self.max_pos_linear - self.planet_radius, dtype=int
-            )
-            lin_yticks_max = (
-                self.pos_lin_density
-                * (lin_ytick_labels[-1] - lin_ytick_labels[0])
-                / (self.max_pos_linear - self.planet_radius)
-            )
-            lin_yticks = np.linspace(0, lin_yticks_max, len(lin_ytick_labels)) - 0.5
-            # log_ytick_labels = np.array([max_pos - self.planet_radius], dtype=int)
-            # log_yticks = np.array([self.obs_space.shape[0] - 0.5])
-            ytick_labels = np.concatenate([lin_ytick_labels, ])
-            yticks = np.concatenate([lin_yticks, ])
-            ax.set_yticks(yticks)
-            ax.set_yticklabels(ytick_labels)
-        # plt.colorbar()
         ax.set_xlabel("velocity")
         ax.set_ylabel("position")
         return image
@@ -176,32 +156,22 @@ def load_obs_buf(run: neptune.Run) -> np.array:
 
 def get_observations_space(
     obs_buf: np.array,
-    max_pos_linear: float,
+    normalize: bool,
     pos_density: int = 50,
     vel_density: int = 50,
 ) -> torch.Tensor:
     if obs_buf is None:
-        min_pos, min_vel = 10.0, -0.015
-        max_pos, max_vel = 14.0, 0.13
+        min_vel, max_vel = (-1.5, 1.5) if normalize else (-0.015, 0.13)
+        min_pos, max_pos = (-1, 1) if normalize else (10, 14)
     else:
         min_pos, min_vel = np.min(obs_buf, axis=0)
         max_pos, max_vel = np.max(obs_buf, axis=0)
-    max_pos_linear = min(max_pos_linear, max_pos)
-    pos_log_density = pos_density // 3
-    pos_lin_density = pos_density - pos_log_density
-    pos_linspace = torch.linspace(min_pos, max_pos_linear, pos_lin_density)
-    # pos_logspace = torch.logspace(
-    #     np.log10(max_pos_linear), np.log10(max_pos), pos_log_density + 1
-    # )[1:]
-    pos_space = torch.cat([pos_linspace, ])
+
+    pos_space = torch.linspace(min_pos, max_pos, pos_density)
     vel_space = torch.linspace(min_vel, max_vel, vel_density)
     grid_pos, grid_vel = torch.meshgrid(pos_space, vel_space)
-    return (
-        torch.stack([grid_pos, grid_vel], dim=2),
-        pos_lin_density,
-        pos_log_density,
-        max_pos_linear,
-    )
+
+    return torch.stack([grid_pos, grid_vel], dim=2)
 
 
 def q_on_const_action(q: MLPQFunction, obs_space: torch.Tensor, action: float):

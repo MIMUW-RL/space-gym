@@ -5,6 +5,7 @@ from spinup.utils.run_utils import setup_logger_kwargs
 import neptune.new as neptune
 import multiprocessing
 import torch
+
 # inefficient parallelization on AMD CPUs
 torch.set_num_threads(1)
 print()
@@ -13,24 +14,28 @@ from gym_space.experiments.utils import make_experiment_hash
 
 
 def run_experiment(conf: dict):
-    test_run_str = '-test' if args.test_run else ''
+    test_run_str = "-test" if args.test_run else ""
     run = neptune.init(project=f"kajetan.janiak/{EXPERIMENT_NAME}{test_run_str}")
     max_episode_steps = 300
     env_params = dict(
         planet_radius=10.0,
         planet_mass=5e7,
         ship_mass=0.1,
-        ship_engine_force=conf['ship_engine_force'],
+        ship_engine_force=conf["ship_engine_force"],
         step_size=conf["step_size"],
         max_episode_steps=max_episode_steps,
         reward_max_height=3.0,
-        reward_partitions=1
+        reward_partitions=1,
     )
     if (vel_scale := conf.get("initial_velocity_scale", 0)) != 0:
         env_params["initial_velocity_scale"] = vel_scale
     hide_dimensions = True
     if hide_dimensions:
-        env_params['hide_dimensions'] = True
+        env_params["hide_dimensions"] = True
+    if conf.get("normalize", False):
+        env_params["normalize"] = True
+    if (height_limit := conf.get("height_limit", 0)) > 0:
+        env_params["height_limit"] = height_limit
     num_layers, layer_size = conf["net_shape"]
     model_hyperparams = dict(
         ac_kwargs=dict(hidden_sizes=[layer_size] * num_layers),
@@ -52,12 +57,14 @@ def run_experiment(conf: dict):
         policy_delay=conf["policy_delay"],
         num_test_episodes=20,
         max_ep_len=max_episode_steps,
-        save_freq=SAVE_FREQ
+        save_freq=SAVE_FREQ,
     )
     if conf["linear"]:
         model_hyperparams["linear"] = True
     experiment_hash = make_experiment_hash(model_hyperparams, env_params)
-    logger_kwargs = setup_logger_kwargs(f"{EXPERIMENT_NAME}-{experiment_hash}", conf["seed"])
+    logger_kwargs = setup_logger_kwargs(
+        f"{EXPERIMENT_NAME}-{experiment_hash}", conf["seed"]
+    )
     logger_kwargs["neptune_run"] = run
     model_hyperparams["logger_kwargs"] = logger_kwargs
     run["env/params"] = env_params
@@ -69,31 +76,37 @@ def run_experiment(conf: dict):
     td3(lambda: Hover1DContinuousEnv(**env_params), **model_hyperparams)
     run.stop()
 
+
 EXPERIMENT_NAME = "hover1d-td3"
 
 
 if __name__ == "__main__":
     import argparse
+
     parser = argparse.ArgumentParser()
     cpu_count = multiprocessing.cpu_count()
-    parser.add_argument('-c', '--cores', type=int, default=int(0.8 * cpu_count))
-    parser.add_argument('--dry_run', action='store_true')
-    parser.add_argument('--test_run', action='store_true')
+    parser.add_argument("-c", "--cores", type=int, default=int(0.8 * cpu_count))
+    parser.add_argument("--dry_run", action="store_true")
+    parser.add_argument("--test_run", action="store_true")
     args = parser.parse_args()
     cores = min(args.cores, cpu_count)
     print(f"{cores=}")
 
     NET_SHAPES = [(2, 6)]
-    EPOCHS = 250
-    REPLAY_SIZES = [1_000_000]
+    EPOCHS = 100
+    STEPS_PER_EPOCH = 4_000
+    REPLAY_SIZES = [STEPS_PER_EPOCH * EPOCHS]
     LINEAR = False
+    NORMALIZE = True
+    HEIGHT_LIMIT = 15
     STEP_SIZES = [15]
-    ACTION_NOISES = [0.1, 0.2]
+    ACTION_NOISES = [0.1]
     SHIP_ENGINE_FORCES = [6e-6]
     TARGET_NOISES = [0.2]
     START_STEPS = [30_000]
     UPDATE_AFTER = [1_000]
-    INITIAL_VELOCITY_SCALES = [0.0, 1e-3, 2e-3, 5e-3]
+    INITIAL_VELOCITY_SCALES = [0.0]
+    # INITIAL_VELOCITY_SCALES = [0.0, 1e-3, 2e-3, 5e-3]
     POLICY_DELAY = [2]
 
     SEEDS = tuple(range(10))
@@ -110,7 +123,9 @@ if __name__ == "__main__":
                                 for start_steps in START_STEPS:
                                     for update_after in UPDATE_AFTER:
                                         for policy_delay in POLICY_DELAY:
-                                            for initial_velocity_scale in INITIAL_VELOCITY_SCALES:
+                                            for (
+                                                initial_velocity_scale
+                                            ) in INITIAL_VELOCITY_SCALES:
                                                 configs.append(
                                                     dict(
                                                         net_shape=net_shape,
@@ -125,7 +140,9 @@ if __name__ == "__main__":
                                                         update_after=update_after,
                                                         policy_delay=policy_delay,
                                                         linear=LINEAR,
-                                                        initial_velocity_scale=initial_velocity_scale
+                                                        initial_velocity_scale=initial_velocity_scale,
+                                                        normalize=NORMALIZE,
+                                                        height_limit=HEIGHT_LIMIT
                                                     )
                                                 )
 

@@ -11,7 +11,8 @@ if __name__ == "__main__":
     from gym_space.envs.hover_1d import Hover1DDiscreteEnv
     env = Hover1DDiscreteEnv(
         step_size=15,
-        ship_engine_force=6e-6
+        ship_engine_force=6e-6,
+        height_limit=14
     )
 
     if not hasattr(env.action_space, 'n'):

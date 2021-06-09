@@ -51,13 +51,13 @@ class Hover1DEnv(SpaceshipEnv, ABC):
         # angle position
         state_mean[2] = 1.5 * np.pi
         # y velocity
-        state_mean[4] = 0.06
+        state_mean[4] = 1e-3
 
         state_std = np.ones(6)
-        # y position
-        state_std[1] = max_height / 2
+        # # y position
+        # state_std[1] = max_height / 2
         # y velocity
-        state_std[4] = 0.06
+        state_std[4] = 2e-3
 
         super().__init__(
             ship=ship,

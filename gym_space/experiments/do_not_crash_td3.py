@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from spinup.algos.pytorch.td3.td3 import td3
-from gym_space.envs.hover_1d import Hover1DContinuousEnv
+from gym_space.envs.do_not_crash import DoNotCrashContinuousEnv
 from spinup.utils.run_utils import setup_logger_kwargs
 import neptune.new as neptune
 import multiprocessing
@@ -17,14 +17,7 @@ def run_experiment(conf: dict):
     test_run_str = "-test" if args.test_run else ""
     run = neptune.init(project=f"kajetan.janiak/{EXPERIMENT_NAME}{test_run_str}")
     env_params = dict(
-        planet_radius=10.0,
-        planet_mass=5e7,
-        ship_mass=0.1,
-        ship_engine_force=6e-6,
-        step_size=conf["step_size"],
         max_episode_steps=MAX_EPISODE_STEPS,
-        max_height=3.0,
-        reward_partitions=1,
     )
     num_layers, layer_size = conf["net_shape"]
     model_hyperparams = dict(
@@ -58,7 +51,7 @@ def run_experiment(conf: dict):
     run["env/params"] = env_params
     run["model/hyperparams"] = model_hyperparams
     run["experiment_hash"] = experiment_hash
-    td3(lambda: Hover1DContinuousEnv(**env_params), **model_hyperparams)
+    td3(lambda: DoNotCrashContinuousEnv(**env_params), **model_hyperparams)
     run.stop()
 
 
@@ -74,47 +67,40 @@ if __name__ == "__main__":
     cores = min(args.cores, cpu_count)
     print(f"{cores=}")
 
-    # FIXME!
-    EPOCHS = 10
+    EPOCHS = 250
     STEPS_PER_EPOCH = 4_000
     REPLAY_SIZE = STEPS_PER_EPOCH * EPOCHS
     SAVE_FREQ = 1
     MAX_EPISODE_STEPS = 300
-    EXPERIMENT_NAME = "hover1d-td3"
+    EXPERIMENT_NAME = "donotcrash-td3"
 
-    NET_SHAPES = [(2, 40)]
-    STEP_SIZES = [15]
+    NET_SHAPES = [(2, 64), (2, 100), (2, 128)]
     ACTION_NOISES = [0.1]
     TARGET_NOISES = [0.2]
-    # FIXME!
-    START_STEPS = [30_000]
+    START_STEPS = [10_000]
     UPDATE_AFTERS = [1_000]
     POLICY_DELAYS = [2]
-    # FIXME!
-    # SEEDS = tuple(range(10))
-    SEEDS = [1]
+    SEEDS = tuple(range(10))
 
     configs = []
     for seed in SEEDS:
         for net_shape in NET_SHAPES:
-            for step_size in STEP_SIZES:
-                for action_noise in ACTION_NOISES:
-                    for target_noise in TARGET_NOISES:
-                        for start_steps in START_STEPS:
-                            for update_after in UPDATE_AFTERS:
-                                for policy_delay in POLICY_DELAYS:
-                                    configs.append(
-                                        dict(
-                                            net_shape=net_shape,
-                                            step_size=step_size,
-                                            action_noise=action_noise,
-                                            target_noise=target_noise,
-                                            seed=seed,
-                                            start_steps=start_steps,
-                                            update_after=update_after,
-                                            policy_delay=policy_delay,
-                                        )
+            for action_noise in ACTION_NOISES:
+                for target_noise in TARGET_NOISES:
+                    for start_steps in START_STEPS:
+                        for update_after in UPDATE_AFTERS:
+                            for policy_delay in POLICY_DELAYS:
+                                configs.append(
+                                    dict(
+                                        net_shape=net_shape,
+                                        action_noise=action_noise,
+                                        target_noise=target_noise,
+                                        seed=seed,
+                                        start_steps=start_steps,
+                                        update_after=update_after,
+                                        policy_delay=policy_delay,
                                     )
+                                )
 
     print(f"{len(configs)=}")
     if not args.dry_run:

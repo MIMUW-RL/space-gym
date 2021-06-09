@@ -12,7 +12,7 @@ from scipy.integrate import solve_ivp
 from functools import partial
 
 DEFAULT_STEP_SIZE = 36.0
-DEFAULT_MAX_EPISODE_STEPS = 1_000
+MAX_ANGULAR_VELOCITY = 0.03
 
 class SpaceshipEnv(gym.Env):
     def __init__(
@@ -20,8 +20,8 @@ class SpaceshipEnv(gym.Env):
         ship: Ship,
         planets: List[Planet],
         rewards: Rewards,
+        max_episode_steps: int,
         step_size: float = DEFAULT_STEP_SIZE,
-        max_episode_steps: int = DEFAULT_MAX_EPISODE_STEPS,
         world_min: np.array = None,
         world_max: np.array = None,
         state_mean: np.array = None,
@@ -40,8 +40,8 @@ class SpaceshipEnv(gym.Env):
             self.world_max = world_max
 
         self.observation_space = Box(
-            low=np.array([*world_min, 0.0, -np.inf, -np.inf, -np.inf]),
-            high=np.array([*world_max, 2 * np.pi, np.inf, np.inf, np.inf])
+            low=np.array([*self.world_min, 0.0, -np.inf, -np.inf, -MAX_ANGULAR_VELOCITY]),
+            high=np.array([*self.world_max, 2 * np.pi, np.inf, np.inf, MAX_ANGULAR_VELOCITY])
         )
         self.rewards = rewards
         self.step_size = step_size
@@ -62,7 +62,11 @@ class SpaceshipEnv(gym.Env):
         else:
             self.state_mean = state_mean
         if state_std is None:
-            self.state_std = np.array([1.0, 1.0, 0.4, 1.0, 1.0, 1.0])
+            pos_xy_std = (self.world_max - self.world_min) / 4
+            angle_std = 1.8
+            vel_xy_std = pos_xy_std / 4e3
+            ang_vel_std = MAX_ANGULAR_VELOCITY / 30
+            self.state_std = np.array([*pos_xy_std, angle_std, *vel_xy_std, ang_vel_std])
         else:
             self.state_std = state_std
         self.elapsed_steps = None
@@ -103,6 +107,12 @@ class SpaceshipEnv(gym.Env):
 
         world_min_event.terminal = True
         self._boundary_events.append(world_min_event)
+
+        def angular_velocity_event(_t, state):
+            return MAX_ANGULAR_VELOCITY - np.abs(state[5])
+
+        angular_velocity_event.terminal = True
+        self._boundary_events.append(angular_velocity_event)
 
 
     def _external_force_and_torque(self, action: np.array, state: np.array):

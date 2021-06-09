@@ -30,7 +30,7 @@ class TD3ExperimentResults:
             self.obs_buf = load_obs_buf(neptune_run)
             print("obs buf loaded")
         self.planet_radius = neptune_run["env/params/planet_radius"].fetch()
-        self.reward_max_height = neptune_run["env/params/reward_max_height"].fetch()
+        self.max_height = neptune_run["env/params/max_height"].fetch()
         try:
             self.normalize = neptune_run["env/params/normalize"].fetch()
         except Exception:
@@ -165,6 +165,7 @@ def load_obs_buf(run: neptune.Run) -> np.array:
     print("loading observations from replay buffer")
     run[f"model/obs_buf"].download(destination=tmp_obs_buf_dest)
     obs_buf = np.load(tmp_obs_buf_dest)
+    obs_buf = obs_buf[:, [1,4]]
     os.unlink(tmp_obs_buf_dest)
     return obs_buf
 

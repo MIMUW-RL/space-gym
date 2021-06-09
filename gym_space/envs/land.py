@@ -9,8 +9,7 @@ from gym_space.rewards import Rewards
 from .spaceship_env import (
     SpaceshipEnv,
     DiscreteSpaceshipEnv,
-    ContinuousSpaceshipEnv,
-    DEFAULT_MAX_EPISODE_STEPS,
+    ContinuousSpaceshipEnv
 )
 
 
@@ -23,7 +22,7 @@ class LandRewards(Rewards):
     max_landing_velocity_penalty: float
     max_landing_angle_penalty: float
     destination_planet: Planet
-    max_episode_steps: int = DEFAULT_MAX_EPISODE_STEPS
+    max_episode_steps: int
 
     def _destination_distance(self, state):
         ship_xy = state[:2]

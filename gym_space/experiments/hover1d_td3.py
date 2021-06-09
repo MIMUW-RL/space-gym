@@ -16,33 +16,23 @@ from gym_space.experiments.utils import make_experiment_hash
 def run_experiment(conf: dict):
     test_run_str = "-test" if args.test_run else ""
     run = neptune.init(project=f"kajetan.janiak/{EXPERIMENT_NAME}{test_run_str}")
-    max_episode_steps = 300
     env_params = dict(
         planet_radius=10.0,
         planet_mass=5e7,
         ship_mass=0.1,
-        ship_engine_force=conf["ship_engine_force"],
+        ship_engine_force=6e-6,
         step_size=conf["step_size"],
-        max_episode_steps=max_episode_steps,
+        max_episode_steps=MAX_EPISODE_STEPS,
         reward_max_height=3.0,
         reward_partitions=1,
     )
-    if (vel_scale := conf.get("initial_velocity_scale", 0)) != 0:
-        env_params["initial_velocity_scale"] = vel_scale
-    hide_dimensions = True
-    if hide_dimensions:
-        env_params["hide_dimensions"] = True
-    if conf.get("normalize", False):
-        env_params["normalize"] = True
-    if (height_limit := conf.get("height_limit_above_planet", 0)) > 0:
-        env_params["height_limit"] = height_limit
     num_layers, layer_size = conf["net_shape"]
     model_hyperparams = dict(
         ac_kwargs=dict(hidden_sizes=[layer_size] * num_layers),
         seed=conf["seed"],
-        steps_per_epoch=4000,
-        epochs=conf["epochs"],
-        replay_size=conf["replay_size"],
+        steps_per_epoch=STEPS_PER_EPOCH,
+        epochs=EPOCHS,
+        replay_size=REPLAY_SIZE,
         gamma=0.99,
         polyak=0.995,
         pi_lr=1e-3,
@@ -56,11 +46,9 @@ def run_experiment(conf: dict):
         noise_clip=0.5,
         policy_delay=conf["policy_delay"],
         num_test_episodes=10,
-        max_ep_len=max_episode_steps,
+        max_ep_len=MAX_EPISODE_STEPS,
         save_freq=SAVE_FREQ,
     )
-    if conf["linear"]:
-        model_hyperparams["linear"] = True
     experiment_hash = make_experiment_hash(model_hyperparams, env_params)
     logger_kwargs = setup_logger_kwargs(
         f"{EXPERIMENT_NAME}-{experiment_hash}", conf["seed"]
@@ -69,15 +57,9 @@ def run_experiment(conf: dict):
     model_hyperparams["logger_kwargs"] = logger_kwargs
     run["env/params"] = env_params
     run["model/hyperparams"] = model_hyperparams
-    if "linear" in model_hyperparams:
-        del model_hyperparams["linear"]
-        model_hyperparams["ac_kwargs"]["activation"] = torch.nn.Identity
     run["experiment_hash"] = experiment_hash
     td3(lambda: Hover1DContinuousEnv(**env_params), **model_hyperparams)
     run.stop()
-
-
-EXPERIMENT_NAME = "hover1d-td3"
 
 
 if __name__ == "__main__":
@@ -92,25 +74,21 @@ if __name__ == "__main__":
     cores = min(args.cores, cpu_count)
     print(f"{cores=}")
 
-    NET_SHAPES = [(2, 6), (2, 10), (2, 30), (2, 50), (2, 64)]
     EPOCHS = 250
     STEPS_PER_EPOCH = 4_000
-    REPLAY_SIZES = [STEPS_PER_EPOCH * EPOCHS]
-    LINEAR = False
-    NORMALIZE = True
-    HEIGHT_LIMIT_ABOVE_PLANET = 6
+    REPLAY_SIZE = STEPS_PER_EPOCH * EPOCHS
+    SAVE_FREQ = 1
+    MAX_EPISODE_STEPS = 300
+    EXPERIMENT_NAME = "hover1d-td3"
+
+    NET_SHAPES = [(2, 6), (2, 10), (2, 30), (2, 50), (2, 64)]
     STEP_SIZES = [15]
     ACTION_NOISES = [0.1]
-    SHIP_ENGINE_FORCES = [6e-6]
     TARGET_NOISES = [0.2]
     START_STEPS = [30_000]
-    UPDATE_AFTER = [1_000]
-    INITIAL_VELOCITY_SCALES = [0.0]
-    # INITIAL_VELOCITY_SCALES = [0.0, 1e-3, 2e-3, 5e-3]
-    POLICY_DELAY = [2]
-
+    UPDATE_AFTERS = [1_000]
+    POLICY_DELAYS = [2]
     SEEDS = tuple(range(10))
-    SAVE_FREQ = 1
 
     configs = []
     for seed in SEEDS:
@@ -118,33 +96,21 @@ if __name__ == "__main__":
             for step_size in STEP_SIZES:
                 for action_noise in ACTION_NOISES:
                     for target_noise in TARGET_NOISES:
-                        for replay_size in REPLAY_SIZES:
-                            for ship_engine_force in SHIP_ENGINE_FORCES:
-                                for start_steps in START_STEPS:
-                                    for update_after in UPDATE_AFTER:
-                                        for policy_delay in POLICY_DELAY:
-                                            for (
-                                                initial_velocity_scale
-                                            ) in INITIAL_VELOCITY_SCALES:
-                                                configs.append(
-                                                    dict(
-                                                        net_shape=net_shape,
-                                                        step_size=step_size,
-                                                        action_noise=action_noise,
-                                                        target_noise=target_noise,
-                                                        seed=seed,
-                                                        epochs=EPOCHS,
-                                                        replay_size=replay_size,
-                                                        ship_engine_force=ship_engine_force,
-                                                        start_steps=start_steps,
-                                                        update_after=update_after,
-                                                        policy_delay=policy_delay,
-                                                        linear=LINEAR,
-                                                        initial_velocity_scale=initial_velocity_scale,
-                                                        normalize=NORMALIZE,
-                                                        height_limit_above_planet=HEIGHT_LIMIT_ABOVE_PLANET
-                                                    )
-                                                )
+                        for start_steps in START_STEPS:
+                            for update_after in UPDATE_AFTERS:
+                                for policy_delay in POLICY_DELAYS:
+                                    configs.append(
+                                        dict(
+                                            net_shape=net_shape,
+                                            step_size=step_size,
+                                            action_noise=action_noise,
+                                            target_noise=target_noise,
+                                            seed=seed,
+                                            start_steps=start_steps,
+                                            update_after=update_after,
+                                            policy_delay=policy_delay,
+                                        )
+                                    )
 
     print(f"{len(configs)=}")
     if not args.dry_run:

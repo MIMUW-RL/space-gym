@@ -21,15 +21,27 @@ class SpaceshipEnv(gym.Env):
         planets: List[Planet],
         rewards: Rewards,
         step_size: float = DEFAULT_STEP_SIZE,
-        max_episode_steps: int = DEFAULT_MAX_EPISODE_STEPS
+        max_episode_steps: int = DEFAULT_MAX_EPISODE_STEPS,
+        world_min: np.array = None,
+        world_max: np.array = None,
+        state_mean: np.array = None,
+        state_std: np.array = None,
     ):
         self.ship = ship
         self.planets = planets
-        self._world_min, self._world_max = None, None
-        self._init_world_min_max()
+
+        if world_min is None:
+            assert world_max is None
+            self._init_default_world_min_max()
+        else:
+            assert world_max is not None
+            assert world_min.shape == world_max.shape == (2,)
+            self.world_min = world_min
+            self.world_max = world_max
+
         self.observation_space = Box(
-            low=np.array([-np.inf, -np.inf, 0.0, -np.inf, -np.inf, -np.inf]),
-            high=np.array([np.inf, np.inf, 2 * np.pi, np.inf, np.inf, np.inf])
+            low=np.array([*world_min, 0.0, -np.inf, -np.inf, -np.inf]),
+            high=np.array([*world_max, 2 * np.pi, np.inf, np.inf, np.inf])
         )
         self.rewards = rewards
         self.step_size = step_size
@@ -45,31 +57,53 @@ class SpaceshipEnv(gym.Env):
         self.last_action = None
         self._renderer = None
         self.max_episode_steps = max_episode_steps
+        if state_mean is None:
+            self.state_mean = np.array([0.0, 0.0, np.pi, 0.0, 0.0, 0.0])
+        else:
+            self.state_mean = state_mean
+        if state_std is None:
+            self.state_std = np.array([1.0, 1.0, 0.4, 1.0, 1.0, 1.0])
+        else:
+            self.state_std = state_std
         self.elapsed_steps = None
         self._np_random = None
         self.seed()
 
-    def _init_world_min_max(self):
+    def _init_default_world_min_max(self):
         if len(self.planets) > 1:
-            self._world_min, self._world_max = planets_min_max(self.planets)
+            self.world_min, self.world_max = planets_min_max(self.planets)
         else:
             planet = self.planets[0]
-            self._world_min = planet.center_pos - 4 * planet.radius
-            self._world_max = planet.center_pos + 4 * planet.radius
+            self.world_min = planet.center_pos - 4 * planet.radius
+            self.world_max = planet.center_pos + 4 * planet.radius
 
     def _init_action_space(self):
         raise NotImplementedError
 
     def _init_boundary_events(self):
-        def event(planet: Planet, _t, state):
+        self._boundary_events = []
+
+        def planet_event(planet: Planet, _t, state):
             ship_xy_pos = state[:2]
             return planet.distance(ship_xy_pos)
 
-        self._boundary_events = []
         for planet_ in self.planets:
-            event_ = partial(event, planet_)
-            event_.terminal = True
-            self._boundary_events.append(event_)
+            event = partial(planet_event, planet_)
+            event.terminal = True
+            self._boundary_events.append(event)
+
+        def world_max_event(_t, state):
+            return np.min(self.world_max - state[:2])
+
+        world_max_event.terminal = True
+        self._boundary_events.append(world_max_event)
+
+        def world_min_event(_t, state):
+            return np.min(state[:2] - self.world_min)
+
+        world_min_event.terminal = True
+        self._boundary_events.append(world_min_event)
+
 
     def _external_force_and_torque(self, action: np.array, state: np.array):
         engine_action, thruster_action = action
@@ -106,15 +140,16 @@ class SpaceshipEnv(gym.Env):
         )
         assert ode_solution.success, ode_solution.message
         self.state = ode_solution.y[:, -1]
-        self._normalize_angle()
+        self._wrap_angle()
         done = ode_solution.status == 1
         return done
 
-    def _normalize_angle(self):
+    def _wrap_angle(self):
         self.state[2] %= 2 * np.pi
 
     @staticmethod
     def _translate_raw_action(raw_action):
+        # different for discrete and continuous environments
         raise NotImplementedError
 
     def _sample_initial_state(self):
@@ -131,17 +166,17 @@ class SpaceshipEnv(gym.Env):
         if self.elapsed_steps >= self.max_episode_steps:
             done = True
         reward = self.rewards.reward(self.state, action, done)
-        return self.state, reward, done, {}
+        return self.normalized_state, reward, done, {}
 
     def reset(self):
         self.state = self._sample_initial_state()
         self.elapsed_steps = 0
-        return self.state
+        return self.normalized_state
 
     def render(self, mode="human"):
         if self._renderer is None:
             from gym_space.rendering import Renderer
-            self._renderer = Renderer(15, self.planets, self._world_min, self._world_max)
+            self._renderer = Renderer(15, self.planets, self.world_min, self.world_max)
 
         engine_active = False
         if self.last_action is not None:
@@ -153,11 +188,18 @@ class SpaceshipEnv(gym.Env):
         return [seed]
 
     @property
+    def normalized_state(self):
+        state = self.state.copy()
+        state -= self.state_mean
+        state /= self.state_std
+        return state
+
+    @property
     def viewer(self):
         return self._renderer.viewer
 
 
-class DiscreteSpaceshipEnv(SpaceshipEnv):
+class DiscreteSpaceshipEnv(SpaceshipEnv, ABC):
     def _init_action_space(self):
         # engine can be turned on or off: 2 options
         # thruster can act clockwise, doesn't act or act counter-clockwise: 3 options
@@ -170,7 +212,7 @@ class DiscreteSpaceshipEnv(SpaceshipEnv):
         return np.array([engine_action, thruster_action])
 
 
-class ContinuousSpaceshipEnv(SpaceshipEnv):
+class ContinuousSpaceshipEnv(SpaceshipEnv, ABC):
     def _init_action_space(self):
         self.action_space = Box(low=-np.ones(2), high=np.ones(2))
 

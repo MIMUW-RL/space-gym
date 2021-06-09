@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import sys, gym, time
+import time
 
 #
 # Test yourself as a learning agent! Pass environment name as a command-line argument, for example:
@@ -11,8 +11,7 @@ if __name__ == "__main__":
     from gym_space.envs.hover_1d import Hover1DDiscreteEnv
     env = Hover1DDiscreteEnv(
         step_size=15,
-        ship_engine_force=6e-6,
-        height_limit=14
+        ship_engine_force=6e-6
     )
 
     if not hasattr(env.action_space, 'n'):

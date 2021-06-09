@@ -100,7 +100,7 @@ class SpaceshipLandEnv(SpaceshipEnv, ABC):
             if try_nr > 100:
                 raise ValueError("Could not find correct initial state")
             try_nr += 1
-            pos_xy = self._np_random.uniform(low=self._world_min, high=self._world_max)
+            pos_xy = self._np_random.uniform(low=self.world_min, high=self.world_max)
             for planet in self.planets:
                 if planet.distance(pos_xy) < 0:
                     break

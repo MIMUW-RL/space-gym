@@ -1,24 +1,15 @@
 #!/usr/bin/env python
 import time
+import gym
 
-#
-# Test yourself as a learning agent! Pass environment name as a command-line argument, for example:
-#
-# python keyboard_agent.py SpaceInvadersNoFrameskip-v4
-#
 
 if __name__ == "__main__":
-    # from gym_space.envs.hover_1d import Hover1DDiscreteEnv
-    # env = Hover1DDiscreteEnv(
-    #     step_size=15,
-    #     ship_engine_force=6e-6
-    # )
-
-    # from gym_space.envs.go_to_planet import SpaceshipGoToPlanetDiscreteEnv
-    # env = SpaceshipGoToPlanetDiscreteEnv()
-
-    from gym_space.envs.do_not_crash import DoNotCrashDiscreteEnv
-    env = DoNotCrashDiscreteEnv()
+    envs_str = [
+        "Hover1DDiscrete-v0",    # 0
+        "DoNotCrashDiscrete-v0"  # 1
+    ]
+    env_ind = 1
+    env = gym.make(f"gym_space:{envs_str[env_ind]}")
 
     if not hasattr(env.action_space, 'n'):
         raise Exception('Keyboard agent only supports discrete action spaces')

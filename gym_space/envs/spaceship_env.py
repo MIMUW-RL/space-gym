@@ -11,17 +11,22 @@ import numpy as np
 from scipy.integrate import solve_ivp
 from functools import partial
 
-DEFAULT_STEP_SIZE = 36.0
-MAX_ANGULAR_VELOCITY = 0.03
 
 class SpaceshipEnv(gym.Env):
+    max_episode_steps = 300
+    step_size = 36.0
+    max_angular_velocity = 0.03
+    metadata = {
+        "render.modes": ["human", "rgb_array"],
+        # FIXME: it doesn't work
+        "video.frames_per_second": 60 / step_size,  # one minute in one second
+    }
+
     def __init__(
         self,
         ship: Ship,
         planets: List[Planet],
         rewards: Rewards,
-        max_episode_steps: int,
-        step_size: float = DEFAULT_STEP_SIZE,
         world_min: np.array = None,
         world_max: np.array = None,
         state_mean: np.array = None,
@@ -29,49 +34,46 @@ class SpaceshipEnv(gym.Env):
     ):
         self.ship = ship
         self.planets = planets
+        self.rewards = rewards
 
+        world_min_max_error_message = (
+            "You have to provide both world_min and world_max or none of them"
+        )
         if world_min is None:
-            assert world_max is None
+            assert world_max is None, world_min_max_error_message
             self._init_default_world_min_max()
         else:
-            assert world_max is not None
+            assert world_max is not None, world_min_max_error_message
             assert world_min.shape == world_max.shape == (2,)
             self.world_min = world_min
             self.world_max = world_max
 
-        self.observation_space = Box(
-            low=np.array([*self.world_min, 0.0, -np.inf, -np.inf, -MAX_ANGULAR_VELOCITY]),
-            high=np.array([*self.world_max, 2 * np.pi, np.inf, np.inf, MAX_ANGULAR_VELOCITY])
+        mean_std_error_message = (
+            "You have to provide both state_mean and state_std or none of them"
         )
-        self.rewards = rewards
-        self.step_size = step_size
-        self.metadata = {
-            'render.modes': ['human', 'rgb_array'],
-            # FIXME: it doesn't work
-            'video.frames_per_second': 60 / step_size  # one minute in one second
-        }
+        if state_mean is None:
+            assert state_std is None, mean_std_error_message
+            self._init_default_state_mean_std()
+        else:
+            assert state_std is not None, mean_std_error_message
+            assert state_mean.shape == state_std.shape == (6,)
+            self.state_mean = state_mean
+            self.state_std = state_std
+
+        self.observation_space = Box(
+            low=np.array(
+                [*self.world_min, 0.0, -np.inf, -np.inf, -self.max_angular_velocity]
+            ),
+            high=np.array(
+                [*self.world_max, 2 * np.pi, np.inf, np.inf, self.max_angular_velocity]
+            ),
+        )
         self._init_action_space()
         self._boundary_events = None
         self._init_boundary_events()
-        self.state = None
-        self.last_action = None
-        self._renderer = None
-        self.max_episode_steps = max_episode_steps
-        if state_mean is None:
-            self.state_mean = np.array([0.0, 0.0, np.pi, 0.0, 0.0, 0.0])
-        else:
-            self.state_mean = state_mean
-        if state_std is None:
-            pos_xy_std = (self.world_max - self.world_min) / 4
-            angle_std = 1.8
-            vel_xy_std = pos_xy_std / 4e3
-            ang_vel_std = MAX_ANGULAR_VELOCITY / 30
-            self.state_std = np.array([*pos_xy_std, angle_std, *vel_xy_std, ang_vel_std])
-        else:
-            self.state_std = state_std
-        self.elapsed_steps = None
         self._np_random = None
         self.seed()
+        self.state = self.last_action = self.elapsed_steps = self._renderer = None
 
     def _init_default_world_min_max(self):
         if len(self.planets) > 1:
@@ -80,6 +82,14 @@ class SpaceshipEnv(gym.Env):
             planet = self.planets[0]
             self.world_min = planet.center_pos - 4 * planet.radius
             self.world_max = planet.center_pos + 4 * planet.radius
+
+    def _init_default_state_mean_std(self):
+        self.state_mean = np.array([0.0, 0.0, np.pi, 0.0, 0.0, 0.0])
+        pos_xy_std = (self.world_max - self.world_min) / 4
+        angle_std = 1.8
+        vel_xy_std = pos_xy_std / 4e3
+        ang_vel_std = self.max_angular_velocity / 30
+        self.state_std = np.array([*pos_xy_std, angle_std, *vel_xy_std, ang_vel_std])
 
     def _init_action_space(self):
         raise NotImplementedError
@@ -109,18 +119,17 @@ class SpaceshipEnv(gym.Env):
         self._boundary_events.append(world_min_event)
 
         def angular_velocity_event(_t, state):
-            return MAX_ANGULAR_VELOCITY - np.abs(state[5])
+            return self.max_angular_velocity - np.abs(state[5])
 
         angular_velocity_event.terminal = True
         self._boundary_events.append(angular_velocity_event)
-
 
     def _external_force_and_torque(self, action: np.array, state: np.array):
         engine_action, thruster_action = action
         engine_force = engine_action * self.ship.max_engine_force
         thruster_torque = thruster_action * self.ship.max_thruster_torque
         angle = state[2]
-        engine_force_direction = - angle_to_unit_vector(angle)
+        engine_force_direction = -angle_to_unit_vector(angle)
         force_xy = engine_force_direction * engine_force
         return np.array([*force_xy, thruster_torque])
 
@@ -166,7 +175,9 @@ class SpaceshipEnv(gym.Env):
         raise NotImplementedError
 
     def step(self, raw_action):
-        assert self.elapsed_steps is not None, "Cannot call env.step() before calling reset()"
+        assert (
+            self.elapsed_steps is not None
+        ), "Cannot call env.step() before calling reset()"
         assert self.action_space.contains(raw_action), raw_action
         action = self._translate_raw_action(raw_action)
         self.last_action = action
@@ -186,6 +197,7 @@ class SpaceshipEnv(gym.Env):
     def render(self, mode="human"):
         if self._renderer is None:
             from gym_space.rendering import Renderer
+
             self._renderer = Renderer(15, self.planets, self.world_min, self.world_max)
 
         engine_active = False

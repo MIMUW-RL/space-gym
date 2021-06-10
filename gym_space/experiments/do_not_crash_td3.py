@@ -16,9 +16,6 @@ from gym_space.experiments.utils import make_experiment_hash
 def run_experiment(conf: dict):
     test_run_str = "-test" if args.test_run else ""
     run = neptune.init(project=f"kajetan.janiak/{EXPERIMENT_NAME}{test_run_str}")
-    env_params = dict(
-        max_episode_steps=MAX_EPISODE_STEPS,
-    )
     num_layers, layer_size = conf["net_shape"]
     model_hyperparams = dict(
         ac_kwargs=dict(hidden_sizes=[layer_size] * num_layers),
@@ -39,19 +36,18 @@ def run_experiment(conf: dict):
         noise_clip=0.5,
         policy_delay=conf["policy_delay"],
         num_test_episodes=10,
-        max_ep_len=MAX_EPISODE_STEPS,
+        max_ep_len=DoNotCrashContinuousEnv.max_episode_steps,
         save_freq=SAVE_FREQ,
     )
-    experiment_hash = make_experiment_hash(model_hyperparams, env_params)
+    experiment_hash = make_experiment_hash(model_hyperparams)
     logger_kwargs = setup_logger_kwargs(
         f"{EXPERIMENT_NAME}-{experiment_hash}", conf["seed"]
     )
     logger_kwargs["neptune_run"] = run
     model_hyperparams["logger_kwargs"] = logger_kwargs
-    run["env/params"] = env_params
     run["model/hyperparams"] = model_hyperparams
     run["experiment_hash"] = experiment_hash
-    td3(lambda: DoNotCrashContinuousEnv(**env_params), **model_hyperparams)
+    td3(lambda: DoNotCrashContinuousEnv(), **model_hyperparams)
     run.stop()
 
 
@@ -104,5 +100,9 @@ if __name__ == "__main__":
 
     print(f"{len(configs)=}")
     if not args.dry_run:
-        with multiprocessing.Pool(cores) as pool:
-            pool.map(run_experiment, configs)
+        if cores > 1:
+            with multiprocessing.Pool(cores) as pool:
+                pool.map(run_experiment, configs)
+        else:
+            for config in configs:
+                run_experiment(config)

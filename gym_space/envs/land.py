@@ -74,6 +74,7 @@ class LandRewards(Rewards):
 
 
 class SpaceshipLandEnv(SpaceshipEnv, ABC):
+    # FIXME: it doesn't work
     def __init__(self):
         ship = Ship(mass=5.5e4, moi=1, max_engine_force=1e6, max_thruster_torque=1e-4)
         planet = Planet(center_pos=np.zeros(2), mass=5.972e24, radius=6.371e6)

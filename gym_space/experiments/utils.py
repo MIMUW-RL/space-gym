@@ -12,7 +12,8 @@ def dict_hash(dictionary: dict) -> str:
     return dhash.hexdigest()
 
 
-def make_experiment_hash(model_hyperparams, env_params):
+def make_experiment_hash(model_hyperparams, env_params=None):
+    env_params = env_params or dict()
     model_hyperparams = model_hyperparams.copy()
     if "logger_kwargs" in model_hyperparams:
         del model_hyperparams["logger_kwargs"]

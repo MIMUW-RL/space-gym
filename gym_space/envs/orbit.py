@@ -26,6 +26,7 @@ class OrbitPlanetRewards(Rewards):
 
 
 class SpaceshipOrbitEnv(SpaceshipEnv, ABC):
+    # FIXME: it doesn't work
     def __init__(self):
         planet = Planet(center_pos=np.zeros(2), mass=5.972e24, radius=6.371e6)
         super().__init__(

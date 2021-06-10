@@ -16,16 +16,6 @@ from gym_space.experiments.utils import make_experiment_hash
 def run_experiment(conf: dict):
     test_run_str = "-test" if args.test_run else ""
     run = neptune.init(project=f"kajetan.janiak/{EXPERIMENT_NAME}{test_run_str}")
-    env_params = dict(
-        planet_radius=10.0,
-        planet_mass=5e7,
-        ship_mass=0.1,
-        ship_engine_force=6e-6,
-        step_size=conf["step_size"],
-        max_episode_steps=MAX_EPISODE_STEPS,
-        max_height=3.0,
-        reward_partitions=1,
-    )
     num_layers, layer_size = conf["net_shape"]
     model_hyperparams = dict(
         ac_kwargs=dict(hidden_sizes=[layer_size] * num_layers),
@@ -49,16 +39,15 @@ def run_experiment(conf: dict):
         max_ep_len=MAX_EPISODE_STEPS,
         save_freq=SAVE_FREQ,
     )
-    experiment_hash = make_experiment_hash(model_hyperparams, env_params)
+    experiment_hash = make_experiment_hash(model_hyperparams)
     logger_kwargs = setup_logger_kwargs(
         f"{EXPERIMENT_NAME}-{experiment_hash}", conf["seed"]
     )
     logger_kwargs["neptune_run"] = run
     model_hyperparams["logger_kwargs"] = logger_kwargs
-    run["env/params"] = env_params
     run["model/hyperparams"] = model_hyperparams
     run["experiment_hash"] = experiment_hash
-    td3(lambda: Hover1DContinuousEnv(**env_params), **model_hyperparams)
+    td3(lambda: Hover1DContinuousEnv(), **model_hyperparams)
     run.stop()
 
 
@@ -74,8 +63,7 @@ if __name__ == "__main__":
     cores = min(args.cores, cpu_count)
     print(f"{cores=}")
 
-    # FIXME!
-    EPOCHS = 10
+    EPOCHS = 100
     STEPS_PER_EPOCH = 4_000
     REPLAY_SIZE = STEPS_PER_EPOCH * EPOCHS
     SAVE_FREQ = 1
@@ -86,13 +74,10 @@ if __name__ == "__main__":
     STEP_SIZES = [15]
     ACTION_NOISES = [0.1]
     TARGET_NOISES = [0.2]
-    # FIXME!
-    START_STEPS = [30_000]
+    START_STEPS = [10_000]
     UPDATE_AFTERS = [1_000]
     POLICY_DELAYS = [2]
-    # FIXME!
-    # SEEDS = tuple(range(10))
-    SEEDS = [1]
+    SEEDS = tuple(range(10))
 
     configs = []
     for seed in SEEDS:
@@ -118,5 +103,10 @@ if __name__ == "__main__":
 
     print(f"{len(configs)=}")
     if not args.dry_run:
-        with multiprocessing.Pool(cores) as pool:
-            pool.map(run_experiment, configs)
+        if cores > 1:
+            with multiprocessing.Pool(cores) as pool:
+                pool.map(run_experiment, configs)
+        else:
+            for config in configs:
+                run_experiment(config)
+

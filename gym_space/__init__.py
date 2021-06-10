@@ -1,30 +1,26 @@
 from gym.envs.registration import register
 
-# Hover
+# Hover 1D
 
 register(
-    id="SpaceshipHover1DDiscrete-v0",
-    entry_point="gym_space.envs:SpaceshipHover1DDiscreteEnv",
-    max_episode_steps=300
+    id="Hover1DDiscrete-v0",
+    entry_point="gym_space.envs:Hover1DDiscreteEnv",
 )
 
 register(
-    id="SpaceshipHover1DContinuous-v0",
-    entry_point="gym_space.envs:SpaceshipHover1DContinuousEnv",
-    max_episode_steps=300
+    id="Hover1DContinuous-v0",
+    entry_point="gym_space.envs:Hover1DContinuousEnv",
 )
 
-
-# Go to planet
+# Do not crash
 
 register(
-    id="SpaceshipGoToPlanetDiscrete-v0",
-    entry_point="gym_space.envs:SpaceshipGoToPlanetDiscreteEnv",
-    max_episode_steps=350
+    id="DoNotCrashDiscrete-v0",
+    entry_point="gym_space.envs:DoNotCrashDiscreteEnv",
 )
 
 register(
-    id="SpaceshipGoToPlanetContinuous-v0",
-    entry_point="gym_space.envs:SpaceshipGoToPlanetContinuousEnv",
-    max_episode_steps=350
+    id="DoNotCrashContinuous-v0",
+    entry_point="gym_space.envs:DoNotCrashContinuousEnv",
 )
+

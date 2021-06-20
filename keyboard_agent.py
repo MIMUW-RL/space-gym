@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import time
 import gym
+import numpy as np
 
 
 if __name__ == "__main__":
@@ -45,6 +46,7 @@ if __name__ == "__main__":
         global human_agent_action, human_wants_restart, human_sets_pause
         human_wants_restart = False
         obser = env.reset()
+        obser_max = np.abs(obser)
         skip = 0
         total_reward = 0
         total_timesteps = 0
@@ -58,6 +60,7 @@ if __name__ == "__main__":
                 skip -= 1
 
             obser, r, done, info = env.step(a)
+            obser_max = np.maximum(np.abs(obser), obser_max)
             # if r != 0:
             print(f"reward = {r:.2f}")
             total_reward += r
@@ -68,8 +71,10 @@ if __name__ == "__main__":
             while human_sets_pause:
                 env.render()
                 time.sleep(0.1)
-            time.sleep(0.05)
+            time.sleep(0.1)
         print("timesteps %i reward %0.2f" % (total_timesteps, total_reward))
+        print(obser_max)
+
 
     print("ACTIONS={}".format(ACTIONS))
     print("Press keys 1 2 3 ... to take actions 1 2 3 ...")

@@ -8,14 +8,15 @@ from gym_space.rewards import Rewards
 from gym_space.helpers import angle_to_unit_vector
 from typing import List
 import numpy as np
+import torch
 from scipy.integrate import solve_ivp
 from functools import partial
 
 
 class SpaceshipEnv(gym.Env):
     max_episode_steps = 300
-    step_size = 36.0
-    max_angular_velocity = 0.03
+    step_size = 1.0
+    max_abs_angular_velocity = 0.3
     metadata = {
         "render.modes": ["human", "rgb_array"],
         # FIXME: it doesn't work
@@ -29,12 +30,12 @@ class SpaceshipEnv(gym.Env):
         rewards: Rewards,
         world_min: np.array = None,
         world_max: np.array = None,
-        state_mean: np.array = None,
-        state_std: np.array = None,
+        with_accelerations: bool = False
     ):
         self.ship = ship
         self.planets = planets
         self.rewards = rewards
+        self.with_accelerations = with_accelerations
 
         world_min_max_error_message = (
             "You have to provide both world_min and world_max or none of them"
@@ -48,25 +49,18 @@ class SpaceshipEnv(gym.Env):
             self.world_min = world_min
             self.world_max = world_max
 
-        mean_std_error_message = (
-            "You have to provide both state_mean and state_std or none of them"
-        )
-        if state_mean is None:
-            assert state_std is None, mean_std_error_message
-            self._init_default_state_mean_std()
-        else:
-            assert state_std is not None, mean_std_error_message
-            assert state_mean.shape == state_std.shape == (6,)
-            self.state_mean = state_mean
-            self.state_std = state_std
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self._torch_world_min = torch.tensor(self.world_min, device=device)
+        self._torch_world_max = torch.tensor(self.world_max, device=device)
 
+        obs_low = [*self.world_min, 0.0, -np.inf, -np.inf, -self.max_abs_angular_velocity]
+        obs_high = [*self.world_max, 2 * np.pi, np.inf, np.inf, self.max_abs_angular_velocity]
+        if self.with_accelerations:
+            obs_low += [-np.inf, -np.inf, -np.inf]
+            obs_high += [np.inf, np.inf, np.inf]
         self.observation_space = Box(
-            low=np.array(
-                [*self.world_min, 0.0, -np.inf, -np.inf, -self.max_angular_velocity]
-            ),
-            high=np.array(
-                [*self.world_max, 2 * np.pi, np.inf, np.inf, self.max_angular_velocity]
-            ),
+            low=np.array(obs_low),
+            high=np.array(obs_high),
         )
         self._init_action_space()
         self._boundary_events = None
@@ -83,43 +77,40 @@ class SpaceshipEnv(gym.Env):
             self.world_min = planet.center_pos - 4 * planet.radius
             self.world_max = planet.center_pos + 4 * planet.radius
 
-    def _init_default_state_mean_std(self):
-        self.state_mean = np.array([0.0, 0.0, np.pi, 0.0, 0.0, 0.0])
-        pos_xy_std = (self.world_max - self.world_min) / 4
-        angle_std = 1.8
-        vel_xy_std = pos_xy_std / 4e3
-        ang_vel_std = self.max_angular_velocity / 30
-        self.state_std = np.array([*pos_xy_std, angle_std, *vel_xy_std, ang_vel_std])
-
     def _init_action_space(self):
         raise NotImplementedError
 
     def _init_boundary_events(self):
         self._boundary_events = []
 
+        # Functions below use weird notation that works
+        # both with numpy 1d arrays and torch 2d tensors
+
         def planet_event(planet: Planet, _t, state):
-            ship_xy_pos = state[:2]
-            return planet.distance(ship_xy_pos)
+            # should equal 0 <=> ship center is touching planet border
+            ship_center_dist2 = state[..., 0] ** 2 + state[..., 1] ** 2
+            return ship_center_dist2 - planet.radius ** 2
 
         for planet_ in self.planets:
             event = partial(planet_event, planet_)
             event.terminal = True
             self._boundary_events.append(event)
 
-        def world_max_event(_t, state):
-            return np.min(self.world_max - state[:2])
+        def world_min_event(idx: int, _t, state):
+            return state[..., idx] - self.world_min[idx]
 
-        world_max_event.terminal = True
-        self._boundary_events.append(world_max_event)
+        def world_max_event(idx: int, _t, state):
+            return self.world_max[idx] - state[..., idx]
 
-        def world_min_event(_t, state):
-            return np.min(state[:2] - self.world_min)
-
-        world_min_event.terminal = True
-        self._boundary_events.append(world_min_event)
+        for idx_ in range(2):
+            for event_fn in [world_min_event, world_max_event]:
+                event = partial(event_fn, idx_)
+                event.terminal = True
+                self._boundary_events.append(event)
 
         def angular_velocity_event(_t, state):
-            return self.max_angular_velocity - np.abs(state[5])
+            # should equal 0 <=> absolute angular velocity equals max_abs_angular_velocity
+            return self.max_abs_angular_velocity ** 2 - state[..., 5] ** 2
 
         angular_velocity_event.terminal = True
         self._boundary_events.append(angular_velocity_event)
@@ -161,10 +152,12 @@ class SpaceshipEnv(gym.Env):
         self.state = ode_solution.y[:, -1]
         self._wrap_angle()
         done = ode_solution.status == 1
+        assert done == self.termination_fn(None, torch.tensor(self.state, dtype=torch.float32)[None, :]).item()
         return done
 
     def _wrap_angle(self):
         self.state[2] %= 2 * np.pi
+        # self.state[2] -= np.pi
 
     @staticmethod
     def _translate_raw_action(raw_action):
@@ -181,18 +174,18 @@ class SpaceshipEnv(gym.Env):
         assert self.action_space.contains(raw_action), raw_action
         action = self._translate_raw_action(raw_action)
         self.last_action = action
+        reward = self.rewards.reward(self.state, action)
 
         done = self._update_state(action)
         self.elapsed_steps += 1
         if self.elapsed_steps >= self.max_episode_steps:
             done = True
-        reward = self.rewards.reward(self.state, action, done)
-        return self.normalized_state, reward, done, {}
+        return self.external_state, reward, done, {}
 
     def reset(self):
         self.state = self._sample_initial_state()
         self.elapsed_steps = 0
-        return self.normalized_state
+        return self.external_state
 
     def render(self, mode="human"):
         if self._renderer is None:
@@ -200,20 +193,48 @@ class SpaceshipEnv(gym.Env):
 
             self._renderer = Renderer(15, self.planets, self.world_min, self.world_max)
 
-        engine_active = False
-        if self.last_action is not None:
-            engine_active = self.last_action[0] > 0.1
-        return self._renderer.render(self.state[:3], engine_active, mode)
+        return self._renderer.render(self.state[:3], self.last_action, mode)
 
     def seed(self, seed=None):
         self._np_random, seed = gym.utils.seeding.np_random(seed)
         return [seed]
 
+    def event_fn(self, next_obs: torch.Tensor):
+        assert next_obs.ndim == 2
+        event_fn_val = torch.full(next_obs.shape[:1], float("inf")).to(next_obs)
+        for event_fn in self._boundary_events:
+            # TODO: it won't work for planet as border, unless we adjust signs
+            event_fn_val = torch.minimum(event_fn(_t=0, state=next_obs), event_fn_val)
+        return event_fn_val
+
+    # TODO: write tests, not just here
+    # TODO: use it INSIDE DeLaN model
+    def termination_fn(
+        self, _act: torch.Tensor, next_obs: torch.Tensor
+    ) -> torch.Tensor:
+        assert next_obs.ndim == 2
+        done = torch.zeros(next_obs.shape[0], dtype=torch.bool, device=next_obs.device)
+        for event_fn in self._boundary_events:
+            event_fn_val = event_fn(_t=0, state=next_obs)
+            # FIXME: LPO DeLaN event finding have to be accurate for this to work
+            done |= is_close_to_zero(event_fn_val)
+
+        return done[:, None]
+
     @property
-    def normalized_state(self):
+    def external_state(self):
         state = self.state.copy()
-        state -= self.state_mean
-        state /= self.state_std
+        state[2] -= np.pi
+        if self.with_accelerations:
+            if self.last_action is None:
+                acc = np.zeros(len(state) // 2)
+            else:
+                acc = self._vector_field(
+                    action=self.last_action,
+                    _time=0.0,
+                    state=state
+                )[3:]
+            return np.concatenate([state, acc])
         return state
 
     @property
@@ -244,3 +265,8 @@ class ContinuousSpaceshipEnv(SpaceshipEnv, ABC):
         # [-1, 1] -> [0, 1]
         engine_action = (engine_action + 1) / 2
         return np.array([engine_action, thruster_action])
+
+
+def is_close_to_zero(x: torch.Tensor, **kwargs) -> torch.Tensor:
+    zeros = torch.tensor(0).to(x).expand(x.shape)
+    return torch.isclose(x, zeros, **kwargs)

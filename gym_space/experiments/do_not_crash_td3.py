@@ -47,7 +47,7 @@ def run_experiment(conf: dict):
     model_hyperparams["logger_kwargs"] = logger_kwargs
     run["model/hyperparams"] = model_hyperparams
     run["experiment_hash"] = experiment_hash
-    td3(lambda: DoNotCrashContinuousEnv(), **model_hyperparams)
+    td3(lambda: DoNotCrashContinuousEnv(with_accelerations=conf["with_accelerations"]), **model_hyperparams)
     run.stop()
 
 
@@ -63,20 +63,21 @@ if __name__ == "__main__":
     cores = min(args.cores, cpu_count)
     print(f"{cores=}")
 
-    EPOCHS = 250
+    EPOCHS = 50
     STEPS_PER_EPOCH = 4_000
     REPLAY_SIZE = STEPS_PER_EPOCH * EPOCHS
     SAVE_FREQ = 1
     MAX_EPISODE_STEPS = 300
     EXPERIMENT_NAME = "donotcrash-td3"
 
-    NET_SHAPES = [(2, 64), (2, 100), (2, 128)]
+    NET_SHAPES = [(2, 100)]
     ACTION_NOISES = [0.1]
     TARGET_NOISES = [0.2]
     START_STEPS = [10_000]
     UPDATE_AFTERS = [1_000]
     POLICY_DELAYS = [2]
-    SEEDS = tuple(range(10))
+    WITH_ACCELERATIONS = [True, False]
+    SEEDS = tuple(range(5))
 
     configs = []
     for seed in SEEDS:
@@ -86,17 +87,19 @@ if __name__ == "__main__":
                     for start_steps in START_STEPS:
                         for update_after in UPDATE_AFTERS:
                             for policy_delay in POLICY_DELAYS:
-                                configs.append(
-                                    dict(
-                                        net_shape=net_shape,
-                                        action_noise=action_noise,
-                                        target_noise=target_noise,
-                                        seed=seed,
-                                        start_steps=start_steps,
-                                        update_after=update_after,
-                                        policy_delay=policy_delay,
+                                for with_accelerations in WITH_ACCELERATIONS:
+                                    configs.append(
+                                        dict(
+                                            net_shape=net_shape,
+                                            action_noise=action_noise,
+                                            target_noise=target_noise,
+                                            seed=seed,
+                                            start_steps=start_steps,
+                                            update_after=update_after,
+                                            policy_delay=policy_delay,
+                                            with_accelerations=with_accelerations
+                                        )
                                     )
-                                )
 
     print(f"{len(configs)=}")
     if not args.dry_run:

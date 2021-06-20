@@ -61,12 +61,14 @@ class LandRewards(Rewards):
             * np.sin(state[2] - perfect_landing_angle) ** 2
         )
 
-    def reward(self, state: np.array, action: np.array, done: bool):
+    def reward(self, state: np.array, action: np.array):
         reward = 0.0
         destination_distance = self._destination_distance(state)
         reward -= self._destination_distance_penalty(destination_distance)
         reward -= self._fuel_penalty(action)
-        if done and np.isclose(0, destination_distance):
+        # if done and np.isclose(0, destination_distance):
+        # FIXME: done argument was removed from reward()
+        if True and np.isclose(0, destination_distance):
             reward += self.destination_reward
             reward -= self._landing_velocity_penalty(state)
             reward -= self._landing_angle_penalty(state)

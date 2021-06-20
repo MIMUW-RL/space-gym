@@ -1,5 +1,6 @@
 from abc import ABC
 import numpy as np
+import torch
 
 from gym_space.planet import Planet
 from gym_space.ship import Ship
@@ -49,6 +50,17 @@ class Hover1DEnv(SpaceshipEnv, ABC):
         y = self.planets[0].radius + height_above_planet
         angle = 1.5 * np.pi
         return np.array([0.0, y, angle, 0.0, 0.0, 0.0])
+
+    def termination_fn(
+        self, _act: torch.Tensor, normalized_next_obs: torch.Tensor
+    ) -> torch.Tensor:
+        assert len(normalized_next_obs.shape) == 2
+
+        next_obs = self.denormalize_state(normalized_next_obs)
+        height_above_planet = next_obs[:, 1] - self.planets[0].radius
+        done = (height_above_planet >= 0) * (height_above_planet <= self.max_height)
+        done = done[:, None]
+        return done
 
 
 class Hover1DDiscreteEnv(Hover1DEnv, DiscreteSpaceshipEnv):

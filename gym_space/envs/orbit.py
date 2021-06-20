@@ -7,15 +7,15 @@ from gym_space.planet import Planet
 from gym_space.ship import Ship
 from gym_space.rewards import Rewards
 from gym_space.helpers import vector_to_angle
-from .spaceship_env import SpaceshipEnv, DiscreteSpaceshipEnv, ContinuousSpaceshipEnv, DEFAULT_STEP_SIZE
+from .spaceship_env import SpaceshipEnv, DiscreteSpaceshipEnv, ContinuousSpaceshipEnv
 
 
 @dataclass
 class OrbitPlanetRewards(Rewards):
     planet: Planet
-    step_size: float = DEFAULT_STEP_SIZE
+    step_size: float = ...  # FIXME
 
-    def reward(self, state: np.array, action: np.array, done: bool):
+    def reward(self, state: np.array, action: np.array):
         ship_xy = state[:2]
         ship_planet_angle = vector_to_angle(ship_xy - self.planet.center_pos)
         ship_velocity_xy = state[3:5]

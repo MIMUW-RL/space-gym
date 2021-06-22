@@ -1,5 +1,5 @@
 from typing import List
-
+import os
 import numpy as np
 from gym.envs.classic_control import rendering
 
@@ -15,11 +15,9 @@ class Renderer:
         self,
         ship_body_radius: float,
         planets: List[Planet],
-        world_min: np.array,
-        world_max: np.array,
+        world_size: np.array,
     ):
-        self.world_translation = world_min
-        world_size = world_max - world_min
+        self.world_translation = -world_size/2
         self.world_scale = np.min(MAX_SCREEN_SIZE / world_size)
         screen_size = np.array(world_size * self.world_scale, dtype=np.int64)
         self.viewer = rendering.Viewer(*screen_size)
@@ -32,7 +30,7 @@ class Renderer:
 
     def _init_planets(self, planets: List[Planet]):
         for planet in planets:
-            # TODO: translate to good position
+            # FIXME: translate to good position
             planet_geom = rendering.make_circle(
                 planet.radius * self.world_scale, filled=False
             )
@@ -95,15 +93,26 @@ class Renderer:
         ship_body_middle.set_color(0.5, 0.5, 0.5)
         self.viewer.add_geom(ship_body_middle)
 
+        torque_img_filename = os.path.join(os.path.dirname(__file__), "assets/torque_img.png")
+        self._torque_img = rendering.Image(torque_img_filename, 20., 20.)
+        self._torque_img_transform = rendering.Transform()
+        self._torque_img.add_attr(self._torque_img_transform)
+        self._torque_img.add_attr(self.ship_transform)
+
     def _world_to_screen(self, world_pos: np.array):
         return self.world_scale * (world_pos - self.world_translation)
 
-    def render(self, ship_world_position: np.array, engine_active: bool, mode: str):
+    def render(self, ship_world_position: np.array, action: np.array, mode: str):
+        self.viewer.add_onetime(self._torque_img)
+        self._torque_img_transform.set_rotation(4)
         ship_screen_position = self._world_to_screen(ship_world_position[:2])
         self.ship_transform.set_translation(*ship_screen_position)
         self.ship_transform.set_rotation(ship_world_position[2])
-        if engine_active:
-            self.exhaust.set_color(0.0, 0.0, 0.0)
+        if action is not None:
+            thrust_action, torque_action = action
         else:
-            self.exhaust.set_color(1.0, 1.0, 1.0)
+            thrust_action = torque_action = 0
+        exhaust_color = 3 * [1 - thrust_action]
+        self.exhaust.set_color(*exhaust_color)
+        self._torque_img_transform.scale = (-torque_action, np.abs(torque_action))
         return self.viewer.render(mode == "rgb_array")

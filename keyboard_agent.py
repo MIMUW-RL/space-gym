@@ -1,15 +1,11 @@
 #!/usr/bin/env python
 import time
 import gym
+import numpy as np
 
 
 if __name__ == "__main__":
-    envs_str = [
-        "Hover1DDiscrete-v0",    # 0
-        "DoNotCrashDiscrete-v0"  # 1
-    ]
-    env_ind = 1
-    env = gym.make(f"gym_space:{envs_str[env_ind]}")
+    env = gym.make(f"gym_space:DoNotCrashDiscrete-v0")
 
     if not hasattr(env.action_space, 'n'):
         raise Exception('Keyboard agent only supports discrete action spaces')
@@ -45,6 +41,7 @@ if __name__ == "__main__":
         global human_agent_action, human_wants_restart, human_sets_pause
         human_wants_restart = False
         obser = env.reset()
+        obser_max = np.abs(obser)
         skip = 0
         total_reward = 0
         total_timesteps = 0
@@ -58,8 +55,7 @@ if __name__ == "__main__":
                 skip -= 1
 
             obser, r, done, info = env.step(a)
-            # if r != 0:
-            print(f"reward = {r:.2f}")
+            obser_max = np.maximum(np.abs(obser), obser_max)
             total_reward += r
             window_still_open = env.render()
             if window_still_open==False: return False
@@ -68,8 +64,9 @@ if __name__ == "__main__":
             while human_sets_pause:
                 env.render()
                 time.sleep(0.1)
-            time.sleep(0.05)
+            time.sleep(0.1)
         print("timesteps %i reward %0.2f" % (total_timesteps, total_reward))
+        print(obser_max)
 
     print("ACTIONS={}".format(ACTIONS))
     print("Press keys 1 2 3 ... to take actions 1 2 3 ...")

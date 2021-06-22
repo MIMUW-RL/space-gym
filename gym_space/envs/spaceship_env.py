@@ -1,4 +1,4 @@
-from abc import ABC
+from abc import ABC, abstractmethod
 
 import gym
 from gym.spaces import Discrete, Box
@@ -12,60 +12,43 @@ from scipy.integrate import solve_ivp
 from functools import partial
 
 
-class SpaceshipEnv(gym.Env):
-    max_episode_steps = 300
-    step_size = 36.0
-    max_angular_velocity = 0.03
+class SpaceshipEnv(gym.Env, ABC):
     metadata = {
         "render.modes": ["human", "rgb_array"],
-        # FIXME: it doesn't work
-        "video.frames_per_second": 60 / step_size,  # one minute in one second
+        "video.frames_per_second": 30,
     }
 
     def __init__(
         self,
+        *,
         ship: Ship,
         planets: List[Planet],
         rewards: Rewards,
-        world_min: np.array = None,
-        world_max: np.array = None,
-        state_mean: np.array = None,
-        state_std: np.array = None,
+        world_size: np.array,
+        step_size: float,
+        max_abs_angular_velocity: float,
+        velocity_xy_std: np.array,
+        max_episode_steps: int
     ):
         self.ship = ship
         self.planets = planets
         self.rewards = rewards
-
-        world_min_max_error_message = (
-            "You have to provide both world_min and world_max or none of them"
-        )
-        if world_min is None:
-            assert world_max is None, world_min_max_error_message
-            self._init_default_world_min_max()
-        else:
-            assert world_max is not None, world_min_max_error_message
-            assert world_min.shape == world_max.shape == (2,)
-            self.world_min = world_min
-            self.world_max = world_max
-
-        mean_std_error_message = (
-            "You have to provide both state_mean and state_std or none of them"
-        )
-        if state_mean is None:
-            assert state_std is None, mean_std_error_message
-            self._init_default_state_mean_std()
-        else:
-            assert state_std is not None, mean_std_error_message
-            assert state_mean.shape == state_std.shape == (6,)
-            self.state_mean = state_mean
-            self.state_std = state_std
+        # TODO: use typing with runtime check
+        assert world_size.shape == (2,)
+        self.world_size = world_size
+        self.step_size = step_size
+        self.max_abs_angular_velocity = max_abs_angular_velocity
+        # TODO: use typing with runtime check
+        assert velocity_xy_std.shape == (2,)
+        self.velocity_xy_std = velocity_xy_std
+        self.max_episode_steps = max_episode_steps
 
         self.observation_space = Box(
             low=np.array(
-                [*self.world_min, 0.0, -np.inf, -np.inf, -self.max_angular_velocity]
+                [-1.0, -1.0, -1.0, -1.0, -np.inf, -np.inf, -1.0]
             ),
             high=np.array(
-                [*self.world_max, 2 * np.pi, np.inf, np.inf, self.max_angular_velocity]
+                [1.0, 1.0, 1.0, 1.0, np.inf, np.inf, 1.0]
             ),
         )
         self._init_action_space()
@@ -73,26 +56,39 @@ class SpaceshipEnv(gym.Env):
         self._init_boundary_events()
         self._np_random = None
         self.seed()
-        self.state = self.last_action = self.elapsed_steps = self._renderer = None
+        self.internal_state = self.last_action = self.elapsed_steps = self._renderer = None
 
-    def _init_default_world_min_max(self):
-        if len(self.planets) > 1:
-            self.world_min, self.world_max = planets_min_max(self.planets)
-        else:
-            planet = self.planets[0]
-            self.world_min = planet.center_pos - 4 * planet.radius
-            self.world_max = planet.center_pos + 4 * planet.radius
+    def reset(self):
+        self.internal_state = self._sample_initial_state()
+        self.elapsed_steps = 0
+        return self.external_state
 
-    def _init_default_state_mean_std(self):
-        self.state_mean = np.array([0.0, 0.0, np.pi, 0.0, 0.0, 0.0])
-        pos_xy_std = (self.world_max - self.world_min) / 4
-        angle_std = 1.8
-        vel_xy_std = pos_xy_std / 4e3
-        ang_vel_std = self.max_angular_velocity / 30
-        self.state_std = np.array([*pos_xy_std, angle_std, *vel_xy_std, ang_vel_std])
+    def step(self, raw_action):
+        assert (
+            self.elapsed_steps is not None
+        ), "Cannot call env.step() before calling reset()"
+        assert self.action_space.contains(raw_action), raw_action
+        action = self._translate_raw_action(raw_action)
+        self.last_action = action
 
-    def _init_action_space(self):
-        raise NotImplementedError
+        done = self._update_state(action)
+        self.elapsed_steps += 1
+        if self.elapsed_steps >= self.max_episode_steps:
+            done = True
+        reward = self.rewards.reward(self.internal_state, action)
+        return self.external_state, reward, done, {}
+
+    def render(self, mode="human"):
+        if self._renderer is None:
+            from gym_space.rendering import Renderer
+
+            self._renderer = Renderer(15, self.planets, self.world_size)
+
+        return self._renderer.render(self.internal_state[:3], self.last_action, mode)
+
+    def seed(self, seed=None):
+        self._np_random, seed = gym.utils.seeding.np_random(seed)
+        return [seed]
 
     def _init_boundary_events(self):
         self._boundary_events = []
@@ -107,19 +103,19 @@ class SpaceshipEnv(gym.Env):
             self._boundary_events.append(event)
 
         def world_max_event(_t, state):
-            return np.min(self.world_max - state[:2])
+            return np.min(self.world_size / 2 - state[:2])
 
         world_max_event.terminal = True
         self._boundary_events.append(world_max_event)
 
         def world_min_event(_t, state):
-            return np.min(state[:2] - self.world_min)
+            return np.min(state[:2] - self.world_size / 2)
 
         world_min_event.terminal = True
         self._boundary_events.append(world_min_event)
 
         def angular_velocity_event(_t, state):
-            return self.max_angular_velocity - np.abs(state[5])
+            return self.max_abs_angular_velocity - np.abs(state[5])
 
         angular_velocity_event.terminal = True
         self._boundary_events.append(angular_velocity_event)
@@ -154,71 +150,51 @@ class SpaceshipEnv(gym.Env):
         ode_solution = solve_ivp(
             partial(self._vector_field, action),
             t_span=(0, self.step_size),
-            y0=self.state,
+            y0=self.internal_state,
             events=self._boundary_events,
         )
         assert ode_solution.success, ode_solution.message
-        self.state = ode_solution.y[:, -1]
+        self.internal_state = ode_solution.y[:, -1]
         self._wrap_angle()
         done = ode_solution.status == 1
         return done
 
     def _wrap_angle(self):
-        self.state[2] %= 2 * np.pi
-
-    @staticmethod
-    def _translate_raw_action(raw_action):
-        # different for discrete and continuous environments
-        raise NotImplementedError
-
-    def _sample_initial_state(self):
-        raise NotImplementedError
-
-    def step(self, raw_action):
-        assert (
-            self.elapsed_steps is not None
-        ), "Cannot call env.step() before calling reset()"
-        assert self.action_space.contains(raw_action), raw_action
-        action = self._translate_raw_action(raw_action)
-        self.last_action = action
-
-        done = self._update_state(action)
-        self.elapsed_steps += 1
-        if self.elapsed_steps >= self.max_episode_steps:
-            done = True
-        reward = self.rewards.reward(self.state, action, done)
-        return self.normalized_state, reward, done, {}
-
-    def reset(self):
-        self.state = self._sample_initial_state()
-        self.elapsed_steps = 0
-        return self.normalized_state
-
-    def render(self, mode="human"):
-        if self._renderer is None:
-            from gym_space.rendering import Renderer
-
-            self._renderer = Renderer(15, self.planets, self.world_min, self.world_max)
-
-        engine_active = False
-        if self.last_action is not None:
-            engine_active = self.last_action[0] > 0.1
-        return self._renderer.render(self.state[:3], engine_active, mode)
-
-    def seed(self, seed=None):
-        self._np_random, seed = gym.utils.seeding.np_random(seed)
-        return [seed]
+        self.internal_state[2] %= 2 * np.pi
 
     @property
-    def normalized_state(self):
-        state = self.state.copy()
-        state -= self.state_mean
-        state /= self.state_std
-        return state
+    def external_state(self):
+        external_state = self.internal_state.copy()
+        # make sure that x and y positions are between -1 and 1
+        external_state[:2] /= self.world_size
+        # normalize translational velocity
+        external_state[3:5] /= self.velocity_xy_std
+        # make sure that angular velocity is between -1 and 1
+        external_state[5] /= self.max_abs_angular_velocity
+        # represent angle as cosine and sine
+        angle = external_state[2]
+        angle_repr = np.array([np.cos(angle), np.sin(angle)])
+        external_state = np.concatenate([external_state[:2], angle_repr, external_state[3:]])
+
+        return external_state
 
     @property
     def viewer(self):
         return self._renderer.viewer
+
+    @abstractmethod
+    def _init_action_space(self):
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def _translate_raw_action(raw_action):
+        # different for discrete and continuous environments
+        pass
+
+    @abstractmethod
+    def _sample_initial_state(self):
+        pass
 
 
 class DiscreteSpaceshipEnv(SpaceshipEnv, ABC):

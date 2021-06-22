@@ -9,23 +9,37 @@ from .spaceship_env import SpaceshipEnv, DiscreteSpaceshipEnv, ContinuousSpacesh
 
 
 class DoNotCrashEnv(SpaceshipEnv, ABC):
-    def __init__(self):
-        planet = Planet(center_pos=np.zeros(2), mass=5.972e24, radius=6.371e6)
-        ship = Ship(mass=1e4, moi=1, max_engine_force=6.04e4, max_thruster_torque=1e-6)
+    _planet_radius = 0.25
+    _border_radius = 1.0
 
+    def __init__(self):
+        planet = Planet(center_pos=np.zeros(2), mass=6e8, radius=self._planet_radius)
+        # here we use planet outline as external border, i.e. we fly "inside planet"
+        border = Planet(center_pos=np.zeros(2), mass=0.0, radius=self._border_radius)
+        ship = Ship(mass=1, moi=0.05, max_engine_force=0.3, max_thruster_torque=0.05)
+
+        max_episode_steps = 300
         super().__init__(
             ship=ship,
-            planets=[planet],
-            rewards=ConstantRewards(100 / self.max_episode_steps)
+            planets=[planet, border],
+            rewards=ConstantRewards(100 / max_episode_steps),
+            world_size=np.array([2 * self._border_radius, 2 * self._border_radius]),
+            step_size=0.07,
+            max_abs_angular_velocity=5.0,
+            velocity_xy_std=np.ones(2),
+            max_episode_steps=max_episode_steps
         )
 
     def _sample_initial_state(self):
         planet_angle = self._np_random.uniform(0, 2 * np.pi)
-        ship_planet_center_distance = self.planets[0].radius * self._np_random.uniform(2, 3)
+        ship_planet_center_distance = self._np_random.uniform(self._planet_radius + 0.2, self._border_radius - 0.15)
         pos_xy = angle_to_unit_vector(planet_angle) * ship_planet_center_distance
         ship_angle = self._np_random.uniform(0, 2 * np.pi)
-        velocities_xy = - angle_to_unit_vector(ship_angle) * 2e3
-        return np.array([*pos_xy, ship_angle, *velocities_xy, 0.0])
+        velocities_xy = self._np_random.standard_normal(2) * 0.07
+        max_abs_ang_vel = 0.7 * self.max_abs_angular_velocity
+        angular_velocity = self._np_random.standard_normal() * max_abs_ang_vel / 3
+        angular_velocity = np.clip(angular_velocity, -max_abs_ang_vel, max_abs_ang_vel)
+        return np.array([*pos_xy, ship_angle, *velocities_xy, angular_velocity])
 
 
 class DoNotCrashDiscreteEnv(DoNotCrashEnv, DiscreteSpaceshipEnv):

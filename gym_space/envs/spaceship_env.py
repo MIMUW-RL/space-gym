@@ -116,13 +116,25 @@ class SpaceshipEnv(gym.Env):
         self._boundary_events.append(angular_velocity_event)
 
     def _external_force_and_torque(self, action: np.array, state: np.array):
-        engine_action, thruster_action = action
+        pytorch = not isinstance(action, np.ndarray)
+        engine_action = action[..., 0]
+        thruster_action = action[..., 1]
         engine_force = engine_action * self.ship.max_engine_force
         thruster_torque = thruster_action * self.ship.max_thruster_torque
-        angle = state[2]
+        angle = state[..., 2]
+        if pytorch:
+            # TODO: FIXME: use mean 0 angle in envs
+            # TODO: maybe even [-1, 1]?
+            # TODO: env in torch?
+            angle = state[..., 2] +  np.pi
         engine_force_direction = -angle_to_unit_vector(angle)
-        force_xy = engine_force_direction * engine_force
-        return np.array([*force_xy, thruster_torque])
+
+        if pytorch:
+            force_xy = engine_force.view(-1, 1) * engine_force_direction
+            return torch.cat([force_xy, thruster_torque.view(-1, 1)], dim=1)
+        else:
+            force_xy = engine_force * engine_force_direction
+            return np.array([*force_xy, thruster_torque])
 
     def _vector_field(self, action, _time, state: np.array):
         external_force_and_torque = self._external_force_and_torque(action, state)
@@ -152,7 +164,10 @@ class SpaceshipEnv(gym.Env):
         self.state = ode_solution.y[:, -1]
         self._wrap_angle()
         done = ode_solution.status == 1
-        assert done == self.termination_fn(None, torch.tensor(self.state, dtype=torch.float32)[None, :]).item()
+        term_fn_done = self.termination_fn(None, torch.tensor(self.state, dtype=torch.float32)[None, :]).item()
+        if done != term_fn_done:
+            raise ValueError
+
         return done
 
     def _wrap_angle(self):
@@ -213,12 +228,8 @@ class SpaceshipEnv(gym.Env):
         self, _act: torch.Tensor, next_obs: torch.Tensor
     ) -> torch.Tensor:
         assert next_obs.ndim == 2
-        done = torch.zeros(next_obs.shape[0], dtype=torch.bool, device=next_obs.device)
-        for event_fn in self._boundary_events:
-            event_fn_val = event_fn(_t=0, state=next_obs)
-            # FIXME: LPO DeLaN event finding have to be accurate for this to work
-            done |= is_close_to_zero(event_fn_val)
-
+        event_fn_val = self.event_fn(next_obs)
+        done = (self.event_fn(next_obs) < 0.0) | is_close_to_zero(event_fn_val)
         return done[:, None]
 
     @property
@@ -236,6 +247,10 @@ class SpaceshipEnv(gym.Env):
                 )[3:]
             return np.concatenate([state, acc])
         return state
+
+    def tau_fn(self, position_and_velocity: torch.Tensor, raw_action: torch.Tensor):
+        action = self._translate_raw_action(raw_action)
+        return self._external_force_and_torque(action, position_and_velocity)
 
     @property
     def viewer(self):
@@ -261,11 +276,14 @@ class ContinuousSpaceshipEnv(SpaceshipEnv, ABC):
 
     @staticmethod
     def _translate_raw_action(raw_action: np.array):
-        engine_action, thruster_action = raw_action
+        engine_action = raw_action[..., 0]
+        thruster_action = raw_action[..., 1]
         # [-1, 1] -> [0, 1]
         engine_action = (engine_action + 1) / 2
-        return np.array([engine_action, thruster_action])
-
+        if isinstance(raw_action, np.ndarray):
+            return np.array([engine_action, thruster_action])
+        else:
+            return torch.stack([engine_action, thruster_action], dim=1)
 
 def is_close_to_zero(x: torch.Tensor, **kwargs) -> torch.Tensor:
     zeros = torch.tensor(0).to(x).expand(x.shape)

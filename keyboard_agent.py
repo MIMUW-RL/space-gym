@@ -11,6 +11,8 @@ if __name__ == "__main__":
     ]
     env_ind = 1
     env = gym.make(f"gym_space:{envs_str[env_ind]}")
+    from gym_space.envs.do_not_crash import DoNotCrashDiscreteEnv
+    env = DoNotCrashDiscreteEnv(with_accelerations=True)
 
     if not hasattr(env.action_space, 'n'):
         raise Exception('Keyboard agent only supports discrete action spaces')

@@ -9,6 +9,7 @@ from .spaceship_env import SpaceshipEnv, DiscreteSpaceshipEnv, ContinuousSpacesh
 
 
 class DoNotCrashEnv(SpaceshipEnv, ABC):
+    max_episode_steps = 300
     _planet_radius = 0.25
     _border_radius = 1.0
 
@@ -18,16 +19,14 @@ class DoNotCrashEnv(SpaceshipEnv, ABC):
         border = Planet(center_pos=np.zeros(2), mass=0.0, radius=self._border_radius)
         ship = Ship(mass=1, moi=0.05, max_engine_force=0.3, max_thruster_torque=0.05)
 
-        max_episode_steps = 300
         super().__init__(
             ship=ship,
             planets=[planet, border],
-            rewards=ConstantRewards(100 / max_episode_steps),
+            rewards=ConstantRewards(100 / self.max_episode_steps),
             world_size=np.array([2 * self._border_radius, 2 * self._border_radius]),
             step_size=0.07,
             max_abs_angular_velocity=5.0,
-            velocity_xy_std=np.ones(2),
-            max_episode_steps=max_episode_steps
+            velocity_xy_std=np.ones(2)
         )
 
     def _sample_initial_state(self):

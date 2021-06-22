@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 
 import gym
 from gym.spaces import Discrete, Box
-from gym_space.planet import Planet, planets_min_max
+from gym_space.planet import Planet
 from gym_space.ship import Ship
 from gym_space.rewards import Rewards
 from gym_space.helpers import angle_to_unit_vector
@@ -13,6 +13,7 @@ from functools import partial
 
 
 class SpaceshipEnv(gym.Env, ABC):
+    max_episode_steps: int = None
     metadata = {
         "render.modes": ["human", "rgb_array"],
         "video.frames_per_second": 30,
@@ -28,7 +29,6 @@ class SpaceshipEnv(gym.Env, ABC):
         step_size: float,
         max_abs_angular_velocity: float,
         velocity_xy_std: np.array,
-        max_episode_steps: int
     ):
         self.ship = ship
         self.planets = planets
@@ -41,7 +41,6 @@ class SpaceshipEnv(gym.Env, ABC):
         # TODO: use typing with runtime check
         assert velocity_xy_std.shape == (2,)
         self.velocity_xy_std = velocity_xy_std
-        self.max_episode_steps = max_episode_steps
 
         self.observation_space = Box(
             low=np.array(

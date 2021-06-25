@@ -4,7 +4,6 @@ import numpy as np
 from gym_space.helpers import angle_to_unit_vector
 from gym_space.planet import Planet
 from gym_space.ship import Ship
-from gym_space.rewards import ConstantRewards
 from .spaceship_env import SpaceshipEnv, DiscreteSpaceshipEnv, ContinuousSpaceshipEnv
 
 
@@ -22,8 +21,7 @@ class DoNotCrashEnv(SpaceshipEnv, ABC):
         super().__init__(
             ship=ship,
             planets=[planet, border],
-            rewards=ConstantRewards(100 / self.max_episode_steps),
-            world_size=np.array([2 * self._border_radius, 2 * self._border_radius]),
+            world_size=2 * self._border_radius,
             step_size=0.07,
             max_abs_angular_velocity=5.0,
             velocity_xy_std=np.ones(2),
@@ -42,6 +40,8 @@ class DoNotCrashEnv(SpaceshipEnv, ABC):
         angular_velocity = np.clip(angular_velocity, -max_abs_ang_vel, max_abs_ang_vel)
         self.internal_state = np.array([*pos_xy, ship_angle, *velocities_xy, angular_velocity])
 
+    def _reward(self) -> float:
+        return 100 / self.max_episode_steps
 
 class DoNotCrashDiscreteEnv(DoNotCrashEnv, DiscreteSpaceshipEnv):
     pass

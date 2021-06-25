@@ -4,7 +4,6 @@ import gym
 from gym.spaces import Discrete, Box
 from gym_space.planet import Planet
 from gym_space.ship import Ship
-from gym_space.rewards import Rewards
 from gym_space.helpers import angle_to_unit_vector, vector_to_angle
 from typing import List, cast
 import numpy as np
@@ -25,7 +24,6 @@ class SpaceshipEnv(gym.Env, ABC):
         *,
         ship: Ship,
         planets: List[Planet],
-        rewards: Rewards,
         world_size: float,
         step_size: float,
         max_abs_angular_velocity: float,
@@ -35,7 +33,6 @@ class SpaceshipEnv(gym.Env, ABC):
     ):
         self.ship = ship
         self.planets = planets
-        self.rewards = rewards
         self.world_size = world_size
         self.step_size = step_size
         self.max_abs_angular_velocity = max_abs_angular_velocity
@@ -79,7 +76,7 @@ class SpaceshipEnv(gym.Env, ABC):
         self.elapsed_steps += 1
         if self.elapsed_steps >= self.max_episode_steps:
             done = True
-        reward = self.rewards.reward(self.internal_state, action)
+        reward = self._reward()
         return self.external_state, reward, done, {}
 
     def render(self, mode="human"):
@@ -214,6 +211,10 @@ class SpaceshipEnv(gym.Env, ABC):
 
     @abstractmethod
     def _reset(self):
+        pass
+
+    @abstractmethod
+    def _reward(self) -> float:
         pass
 
 

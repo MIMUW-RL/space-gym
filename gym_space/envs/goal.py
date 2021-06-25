@@ -41,22 +41,20 @@ class GoalEnv(SpaceshipEnv, ABC):
         )
 
     def _sample_positions(self):
-        n_found = 0
-        while n_found < self._n_planets + 2:
-            new_pos = self._np_random.uniform(-0.5, 0.5, 2) * self.world_size
-            for other_planet in self.planets[:n_found]:
-                if other_planet.distance(new_pos) < self._planets_radius:
+        positions = []
+        while len(positions) < self._n_planets + 2:
+            new_pos = self._np_random.uniform(-1.0, 1.0, 2) * (self.world_size / 2 - self._planets_radius)
+            for other_pos in positions:
+                if np.linalg.norm(other_pos - new_pos) < 3 * self._planets_radius:
                     break
             else:
-                n_found += 1
-                if n_found <= self._n_planets:
-                    self.planets[n_found - 1].center_pos = new_pos
-                elif n_found <= self._n_planets + 2:
-                    # return ship position, then goal position
-                    yield new_pos
+                positions.append(new_pos)
+        return positions
 
     def _reset(self):
-        pos_xy, goal_pos = self._sample_positions()
+        *planets_pos, ship_pos, goal_pos = self._sample_positions()
+        for pos, planet in zip(planets_pos, self.planets):
+            planet.center_pos = pos
         self.goal_pos = goal_pos
         if self._renderer is not None:
             self._renderer.move_goal(self.goal_pos)
@@ -65,7 +63,7 @@ class GoalEnv(SpaceshipEnv, ABC):
         max_abs_ang_vel = 0.7 * self.max_abs_angular_velocity
         angular_velocity = self._np_random.standard_normal() * max_abs_ang_vel / 3
         angular_velocity = np.clip(angular_velocity, -max_abs_ang_vel, max_abs_ang_vel)
-        self.internal_state = np.array([*pos_xy, ship_angle, *velocities_xy, angular_velocity])
+        self.internal_state = np.array([*ship_pos, ship_angle, *velocities_xy, angular_velocity])
 
     def _reward(self) -> float:
         survival_reward = 1.0

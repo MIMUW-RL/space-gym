@@ -52,10 +52,9 @@ class GoalEnv(SpaceshipEnv, ABC):
         return positions
 
     def _reset(self):
-        *planets_pos, ship_pos, goal_pos = self._sample_positions()
+        *planets_pos, ship_pos, self.goal_pos = self._sample_positions()
         for pos, planet in zip(planets_pos, self.planets):
             planet.center_pos = pos
-        self.goal_pos = goal_pos
         if self._renderer is not None:
             self._renderer.move_goal(self.goal_pos)
         ship_angle = self._np_random.uniform(0, 2 * np.pi)

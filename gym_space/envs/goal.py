@@ -8,7 +8,6 @@ from .spaceship_env import SpaceshipEnv, DiscreteSpaceshipEnv, ContinuousSpacesh
 
 class GoalEnv(SpaceshipEnv, ABC):
     max_episode_steps = 300
-    _n_planets = 4
     _planets_radius = 0.3
     _planets_mass = 2e8
     _max_position_sample_tries = 30
@@ -16,11 +15,13 @@ class GoalEnv(SpaceshipEnv, ABC):
 
     def __init__(
         self,
+        n_planets: int = 5,
         survival_reward_scale: float = 0.5,
         goal_dist_reward_scale: float = 0.4,
         economy_reward_scale: float = 0.1,
         test_env: bool = False
     ):
+        self._n_planets = n_planets
         planets = [Planet(mass=self._planets_mass, radius=self._planets_radius) for _ in range(self._n_planets)]
         ship = Ship(mass=1, moi=0.05, max_engine_force=0.3, max_thruster_torque=0.05)
 

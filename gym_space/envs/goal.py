@@ -11,13 +11,15 @@ class GoalEnv(SpaceshipEnv, ABC):
     _n_planets = 4
     _planets_radius = 0.3
     _planets_mass = 2e8
+    _max_position_sample_tries = 30
 
 
     def __init__(
         self,
         survival_reward_scale: float = 0.5,
         goal_dist_reward_scale: float = 0.4,
-        economy_reward_scale: float = 0.1
+        economy_reward_scale: float = 0.1,
+        test_env: bool = False
     ):
         planets = [Planet(mass=self._planets_mass, radius=self._planets_radius) for _ in range(self._n_planets)]
         ship = Ship(mass=1, moi=0.05, max_engine_force=0.3, max_thruster_torque=0.05)
@@ -28,6 +30,8 @@ class GoalEnv(SpaceshipEnv, ABC):
         self.survival_reward_scale = survival_reward_scale
         self.goal_dist_reward_scale = goal_dist_reward_scale
         self.economy_reward_scale = economy_reward_scale
+
+        self.test_env = test_env
 
         super().__init__(
             ship=ship,
@@ -42,13 +46,25 @@ class GoalEnv(SpaceshipEnv, ABC):
 
     def _sample_positions(self):
         positions = []
+        n_tries = 0
         while len(positions) < self._n_planets + 2:
+            n_tries += 1
+            if n_tries > self._max_position_sample_tries:
+                # let's start again
+                n_tries = 0
+                positions = []
+                continue
             new_pos = self._np_random.uniform(-1.0, 1.0, 2) * (self.world_size / 2 - self._planets_radius)
             for other_pos in positions:
                 if np.linalg.norm(other_pos - new_pos) < 3 * self._planets_radius:
                     break
             else:
                 positions.append(new_pos)
+                if self.test_env and len(positions) == self._n_planets + 2:
+                    ship_pos, goal_pos = positions[-2:]
+                    if np.linalg.norm(ship_pos - goal_pos) < 0.7 * self.world_size:
+                        positions = positions[:-2]
+                        continue
         return positions
 
     def _reset(self):

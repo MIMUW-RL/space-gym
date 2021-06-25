@@ -69,7 +69,7 @@ class SpaceshipEnv(gym.Env, ABC):
             self.elapsed_steps is not None
         ), "Cannot call env.step() before calling reset()"
         assert self.action_space.contains(raw_action), raw_action
-        action = self._translate_raw_action(raw_action)
+        action = np.array(self._translate_raw_action(raw_action))
         self.last_action = action
 
         done = self._update_state(action)
@@ -226,9 +226,18 @@ class DiscreteSpaceshipEnv(SpaceshipEnv, ABC):
 
     @staticmethod
     def _translate_raw_action(raw_action: int):
-        engine_action = float(raw_action % 2)
-        thruster_action = float(raw_action // 2 - 1)
-        return np.array([engine_action, thruster_action])
+        if raw_action == 0:
+            return 0.0, 0.0
+        elif raw_action == 1:
+            return 1.0, 0.0
+        elif raw_action == 2:
+            return 0.0, -1.0
+        elif raw_action == 3:
+            return 0.0, 1.0
+        elif raw_action <= 5:
+            return 1.0, (raw_action - 4.5) * 2
+        else:
+            raise ValueError
 
 
 class ContinuousSpaceshipEnv(SpaceshipEnv, ABC):
@@ -239,5 +248,4 @@ class ContinuousSpaceshipEnv(SpaceshipEnv, ABC):
     def _translate_raw_action(raw_action: np.array):
         engine_action, thruster_action = raw_action
         # [-1, 1] -> [0, 1]
-        engine_action = (engine_action + 1) / 2
-        return np.array([engine_action, thruster_action])
+        return (engine_action + 1) / 2, thruster_action

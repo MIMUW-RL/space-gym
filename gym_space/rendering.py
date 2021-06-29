@@ -7,7 +7,7 @@ from gym.envs.classic_control import rendering
 from .planet import Planet
 from .helpers import angle_to_unit_vector
 
-MAX_SCREEN_SIZE = np.array([800, 500])
+MAX_SCREEN_SIZE = 600
 
 
 class Renderer:
@@ -15,31 +15,52 @@ class Renderer:
         self,
         ship_body_radius: float,
         planets: List[Planet],
-        world_size: np.array,
+        world_size: float,
+        with_goal: bool
     ):
-        self.world_translation = -world_size/2
-        self.world_scale = np.min(MAX_SCREEN_SIZE / world_size)
-        screen_size = np.array(world_size * self.world_scale, dtype=np.int64)
+        self.world_translation = np.full(2, -world_size/2)
+        self.world_scale = MAX_SCREEN_SIZE / world_size
+        screen_size = np.full(2, world_size * self.world_scale, dtype=np.int64)
         self.viewer = rendering.Viewer(*screen_size)
         self.ship_transform = rendering.Transform()
-        self._init_planets(planets)
+        self.planets = planets
+        self._init_planets()
+        self.move_planets()
         self._init_engine(ship_body_radius)
         self.exhaust = None
         self._init_exhaust(ship_body_radius)
         self._init_ship(ship_body_radius)
+        self.with_goal = with_goal
+        self.goal_transform = None
+        if self.with_goal:
+            self._init_goal()
 
-    def _init_planets(self, planets: List[Planet]):
-        for planet in planets:
-            # FIXME: translate to good position
+    def move_planets(self):
+        for planet, transform in zip(self.planets, self._planets_transforms):
+            transform.set_translation(*self._world_to_screen(planet.center_pos))
+
+    def move_goal(self, goal_pos):
+        assert self.with_goal
+        self.goal_transform.set_translation(*self._world_to_screen(goal_pos))
+
+    def _init_planets(self):
+        self._planets_transforms = []
+        for planet in self.planets:
             planet_geom = rendering.make_circle(
                 planet.radius * self.world_scale, filled=False
             )
-            planet_geom.add_attr(
-                rendering.Transform(
-                    translation=self._world_to_screen(planet.center_pos)
-                )
-            )
+            transform = rendering.Transform()
+            self._planets_transforms.append(transform)
+            planet_geom.add_attr(transform)
             self.viewer.add_geom(planet_geom)
+
+    def _init_goal(self):
+        line1 = rendering.Line((-10, -10), (10, 10))
+        line2 = rendering.Line((-10, 10), (10, -10))
+        goal = rendering.Compound([line1, line2])
+        self.goal_transform = rendering.Transform()
+        goal.add_attr(self.goal_transform)
+        self.viewer.add_geom(goal)
 
     def _init_engine(self, ship_body_radius: float):
         engine_edge_length = ship_body_radius * 1.7

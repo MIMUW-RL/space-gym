@@ -62,6 +62,10 @@ class SpaceshipEnv(gym.Env, ABC):
         self.elapsed_steps = 0
         return self.external_state
 
+    #define reward function
+    def reward(self, action, prev_state ):
+        return self.rewards.reward(self.internal_state, action)
+
     def step(self, raw_action):
         assert (
             self.elapsed_steps is not None
@@ -69,12 +73,16 @@ class SpaceshipEnv(gym.Env, ABC):
         assert self.action_space.contains(raw_action), raw_action
         action = self._translate_raw_action(raw_action)
         self.last_action = action
-
+        prev_state = None
+        if(self.elapsed_steps > 0):
+            prev_state = self.external_state
         done = self._update_state(action)
+        if(self.elapsed_steps == 0):
+            prev_state = self.external_state
         self.elapsed_steps += 1
         if self.elapsed_steps >= self.max_episode_steps:
             done = True
-        reward = self.rewards.reward(self.internal_state, action)
+        reward = self.reward( action, prev_state )
         return self.external_state, reward, done, {}
 
     def render(self, mode="human"):

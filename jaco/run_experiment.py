@@ -15,7 +15,7 @@ ALGORITHMS = ['ddpg', 'sac', 'td3']
 
 parser = argparse.ArgumentParser(description='Gym-Space experiment configuration')
 parser.add_argument('algorithm', choices=ALGORITHMS)
-
+parser.add_argument('env', choices = ['Orbit', 'DoNotCrashContinuous', 'GoalContinuous'])
 parser.add_argument('-c', '--config', type=str, required=True)
 parser.add_argument('--spp', nargs='?', const=True, default=False)
 parser.add_argument('--n_runs', type=int, default=1)
@@ -100,7 +100,7 @@ if __name__ == '__main__':
         max_episode_steps=300,
     )
 
-    config['env_name']  = 'Orbit-v0'
+    config['env_name']  = args.env + '-v0'
 
     algorithm = get_algorithm(args.algorithm, args.spp)
     kwargs_list = []

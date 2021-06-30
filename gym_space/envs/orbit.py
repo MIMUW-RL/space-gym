@@ -21,8 +21,9 @@ class OrbitEnv(ContinuousSpaceshipEnv):
     #to tune them
     def reward( self, action, prev_state ):
         state = self.external_state
-        prev_xy = prev_state[3:-1]
-        xy = state[3:-1]
+        
+        prev_xy = prev_state[:2]
+        xy = state[:2]
 
         prev_xy = prev_xy / np.linalg.norm(prev_xy)
         xy = xy / np.linalg.norm(xy)
@@ -30,7 +31,7 @@ class OrbitEnv(ContinuousSpaceshipEnv):
         angle_diff = np.nan_to_num(angle_diff)
 
         vel_xy = np.linalg.norm(state[3:-1])
-        print(f"{prev_xy} {xy} {prev_xy.dot(xy)} {angle_diff}")
+        #print(f"{prev_xy} {xy} {prev_xy.dot(xy)} {angle_diff}")
         rotationvel = np.abs(angle_diff)        
 
         action_n = np.linalg.norm(action)

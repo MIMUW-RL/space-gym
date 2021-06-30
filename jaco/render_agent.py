@@ -31,7 +31,7 @@ def visualise_episode_vanilla(algo):
         i+=1
     print(f"ep_ret={ep_ret}")
         
-model_path = "models/Jun29_21-32-14.602Orbit-v0-g0.99-spe5000-TD3-a_lr0.0003-rf0-noi0.2-obs_normFalse-pi_ufr2.pkl"
+model_path = "models/Jun30_13-12-28.489Orbit-v0-g0.99-spe5000-TD3-a_lr0.0003-rf0-noi0.2-obs_normFalse-pi_ufr2.pkl"
 
 env = OrbitEnv()
 

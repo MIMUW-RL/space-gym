@@ -4,7 +4,6 @@ import numpy as np
 from gym_space.helpers import angle_to_unit_vector
 from gym_space.planet import Planet
 from gym_space.ship import Ship
-from gym_space.rewards import ConstantRewards
 from .spaceship_env import SpaceshipEnv, DiscreteSpaceshipEnv, ContinuousSpaceshipEnv
 from gym_space.helpers import vector_to_angle
 
@@ -30,12 +29,16 @@ class OrbitEnv(ContinuousSpaceshipEnv):
         angle_diff = np.arccos( prev_xy.dot(xy) )        
         angle_diff = np.nan_to_num(angle_diff)
 
-        vel_xy = np.linalg.norm(state[3:-1])        
+        vel_xy = np.linalg.norm(state[3:-1])
+        print(f"{prev_xy} {xy} {prev_xy.dot(xy)} {angle_diff}")
         rotationvel = np.abs(angle_diff)        
 
         action_n = np.linalg.norm(action)
 
         return self.reward_value + self.C_rotationvel * rotationvel - self.C_action * action_n
+
+    def _reward(self):
+        return self.reward_value
 
     def __init__(self):
         planet = Planet(center_pos=np.zeros(2), mass=6e8, radius=self._planet_radius)
@@ -45,15 +48,16 @@ class OrbitEnv(ContinuousSpaceshipEnv):
 
         super().__init__(
             ship=ship,
-            planets=[planet, border],
-            rewards=ConstantRewards(100 / self.max_episode_steps),
-            world_size=np.array([2 * self._border_radius, 2 * self._border_radius]),
+            planets=[planet, border],            
+            world_size=2 * self._border_radius,
             step_size=0.07,
             max_abs_angular_velocity=5.0,
-            velocity_xy_std=np.ones(2)
+            velocity_xy_std=np.ones(2),
+            with_lidar=False,
+            with_goal=False
         )
 
-    def _sample_initial_state(self):
+    def _reset(self):
         planet_angle = self._np_random.uniform(0, 2 * np.pi)
         ship_planet_center_distance = self._np_random.uniform(self._planet_radius + 0.2, self._border_radius - 0.15)
         pos_xy = angle_to_unit_vector(planet_angle) * ship_planet_center_distance
@@ -62,4 +66,4 @@ class OrbitEnv(ContinuousSpaceshipEnv):
         max_abs_ang_vel = 0.7 * self.max_abs_angular_velocity
         angular_velocity = self._np_random.standard_normal() * max_abs_ang_vel / 3
         angular_velocity = np.clip(angular_velocity, -max_abs_ang_vel, max_abs_ang_vel)
-        return np.array([*pos_xy, ship_angle, *velocities_xy, angular_velocity])
+        self.internal_state = np.array([*pos_xy, ship_angle, *velocities_xy, angular_velocity])

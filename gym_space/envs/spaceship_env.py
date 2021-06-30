@@ -4,11 +4,11 @@ import gym
 from gym.spaces import Discrete, Box
 from gym_space.planet import Planet
 from gym_space.ship import Ship
-from gym_space.rewards import Rewards
-from gym_space.helpers import angle_to_unit_vector
-from typing import List
+from gym_space.helpers import angle_to_unit_vector, vector_to_angle
+from typing import List, cast
 import numpy as np
 from scipy.integrate import solve_ivp
+from scipy.integrate._ivp.ivp import OdeResult
 from functools import partial
 
 
@@ -24,32 +24,32 @@ class SpaceshipEnv(gym.Env, ABC):
         *,
         ship: Ship,
         planets: List[Planet],
-        rewards: Rewards,
-        world_size: np.array,
+        world_size: float,
         step_size: float,
         max_abs_angular_velocity: float,
         velocity_xy_std: np.array,
+        with_lidar: bool,
+        with_goal: bool
     ):
         self.ship = ship
         self.planets = planets
-        self.rewards = rewards
-        # TODO: use typing with runtime check
-        assert world_size.shape == (2,)
         self.world_size = world_size
         self.step_size = step_size
         self.max_abs_angular_velocity = max_abs_angular_velocity
-        # TODO: use typing with runtime check
         assert velocity_xy_std.shape == (2,)
         self.velocity_xy_std = velocity_xy_std
 
-        self.observation_space = Box(
-            low=np.array(
-                [-1.0, -1.0, -1.0, -1.0, -np.inf, -np.inf, -1.0]
-            ),
-            high=np.array(
-                [1.0, 1.0, 1.0, 1.0, np.inf, np.inf, 1.0]
-            ),
-        )
+        obs_high = [1.0, 1.0, 1.0, 1.0, np.inf, np.inf, 1.0]
+        self.with_lidar = with_lidar
+        self.with_goal = with_goal
+        self.goal_pos = None
+        if self.with_lidar:
+            # (x, y) vector for each planet
+            obs_high += 2 * len(self.planets) * [2 * np.sqrt(2)]
+            if self.with_goal:
+                obs_high += 2 * [2 * np.sqrt(2)]
+        obs_high = np.array(obs_high)
+        self.observation_space = Box(low=-obs_high, high=obs_high)
         self._init_action_space()
         self._boundary_events = None
         self._init_boundary_events()
@@ -58,20 +58,22 @@ class SpaceshipEnv(gym.Env, ABC):
         self.internal_state = self.last_action = self.elapsed_steps = self._renderer = None
 
     def reset(self):
-        self.internal_state = self._sample_initial_state()
+        self._reset()
+        if self._renderer is not None:
+            self._renderer.move_planets()
         self.elapsed_steps = 0
         return self.external_state
 
     #define reward function
     def reward(self, action, prev_state ):
-        return self.rewards.reward(self.internal_state, action)
+        pass
 
     def step(self, raw_action):
         assert (
             self.elapsed_steps is not None
         ), "Cannot call env.step() before calling reset()"
         assert self.action_space.contains(raw_action), raw_action
-        action = self._translate_raw_action(raw_action)
+        action = np.array(self._translate_raw_action(raw_action))
         self.last_action = action
         prev_state = None
         if(self.elapsed_steps > 0):
@@ -89,8 +91,9 @@ class SpaceshipEnv(gym.Env, ABC):
         if self._renderer is None:
             from gym_space.rendering import Renderer
 
-            self._renderer = Renderer(15, self.planets, self.world_size)
-
+            self._renderer = Renderer(15, self.planets, self.world_size, self.with_goal)
+            if self.goal_pos is not None:
+                self._renderer.move_goal(self.goal_pos)        
         return self._renderer.render(self.internal_state[:3], self.last_action, mode)
 
     def seed(self, seed=None):
@@ -116,7 +119,7 @@ class SpaceshipEnv(gym.Env, ABC):
         self._boundary_events.append(world_max_event)
 
         def world_min_event(_t, state):
-            return np.min(state[:2] - self.world_size / 2)
+            return np.min(self.world_size / 2 + state[:2])
 
         world_min_event.terminal = True
         self._boundary_events.append(world_min_event)
@@ -160,9 +163,11 @@ class SpaceshipEnv(gym.Env, ABC):
             y0=self.internal_state,
             events=self._boundary_events,
         )
+        ode_solution = cast(OdeResult, ode_solution)
         assert ode_solution.success, ode_solution.message
         self.internal_state = ode_solution.y[:, -1]
         self._wrap_angle()
+        # done if any of self._boundary_events occurred
         done = ode_solution.status == 1
         return done
 
@@ -181,9 +186,20 @@ class SpaceshipEnv(gym.Env, ABC):
         # represent angle as cosine and sine
         angle = external_state[2]
         angle_repr = np.array([np.cos(angle), np.sin(angle)])
-        external_state = np.concatenate([external_state[:2], angle_repr, external_state[3:]])
+        external_state = [external_state[:2], angle_repr, external_state[3:]]
 
-        return external_state
+        def create_lidar_vector(obj_pos, planet_radius = 0.0):
+            ship_center_obj_vec = obj_pos - self.internal_state[:2]
+            ship_obj_angle = vector_to_angle(ship_center_obj_vec) - np.pi / 2 - self.internal_state[2]
+            ship_obj_angle %= 2 * np.pi
+            scale = (np.linalg.norm(ship_center_obj_vec) - planet_radius) * 2 / self.world_size
+            return angle_to_unit_vector(ship_obj_angle) * scale
+
+        if self.with_lidar:
+            external_state += [create_lidar_vector(p.center_pos, p.radius) for p in self.planets]
+            if self.with_goal:
+                external_state += [create_lidar_vector(self.goal_pos)]
+        return np.concatenate(external_state)
 
     @property
     def viewer(self):
@@ -191,6 +207,7 @@ class SpaceshipEnv(gym.Env, ABC):
 
     @abstractmethod
     def _init_action_space(self):
+        # different for discrete and continuous environments
         pass
 
     @staticmethod
@@ -200,7 +217,11 @@ class SpaceshipEnv(gym.Env, ABC):
         pass
 
     @abstractmethod
-    def _sample_initial_state(self):
+    def _reset(self):
+        pass
+
+    @abstractmethod
+    def _reward(self) -> float:
         pass
 
 
@@ -212,9 +233,18 @@ class DiscreteSpaceshipEnv(SpaceshipEnv, ABC):
 
     @staticmethod
     def _translate_raw_action(raw_action: int):
-        engine_action = float(raw_action % 2)
-        thruster_action = float(raw_action // 2 - 1)
-        return np.array([engine_action, thruster_action])
+        if raw_action == 0:
+            return 0.0, 0.0
+        elif raw_action == 1:
+            return 1.0, 0.0
+        elif raw_action == 2:
+            return 0.0, -1.0
+        elif raw_action == 3:
+            return 0.0, 1.0
+        elif raw_action <= 5:
+            return 1.0, (raw_action - 4.5) * 2
+        else:
+            raise ValueError
 
 
 class ContinuousSpaceshipEnv(SpaceshipEnv, ABC):
@@ -225,5 +255,4 @@ class ContinuousSpaceshipEnv(SpaceshipEnv, ABC):
     def _translate_raw_action(raw_action: np.array):
         engine_action, thruster_action = raw_action
         # [-1, 1] -> [0, 1]
-        engine_action = (engine_action + 1) / 2
-        return np.array([engine_action, thruster_action])
+        return (engine_action + 1) / 2, thruster_action

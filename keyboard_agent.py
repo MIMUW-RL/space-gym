@@ -5,7 +5,8 @@ import numpy as np
 
 
 if __name__ == "__main__":
-    env = gym.make(f"gym_space:DoNotCrashDiscrete-v0")
+    # env = gym.make(f"gym_space:DoNotCrashDiscrete-v0")
+    env = gym.make(f"gym_space:GoalDiscrete-v0")
 
     if not hasattr(env.action_space, 'n'):
         raise Exception('Keyboard agent only supports discrete action spaces')

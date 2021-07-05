@@ -19,7 +19,8 @@ class GoalEnv(SpaceshipEnv, ABC):
         survival_reward_scale: float = 0.5,
         goal_dist_reward_scale: float = 0.4,
         economy_reward_scale: float = 0.1,
-        test_env: bool = False
+        test_env: bool = False,
+        renderer_kwargs: dict = None
     ):
         self._n_planets = n_planets
         planets = [Planet(mass=self._planets_mass, radius=self._planets_radius) for _ in range(self._n_planets)]
@@ -42,7 +43,8 @@ class GoalEnv(SpaceshipEnv, ABC):
             max_abs_angular_velocity=5.0,
             velocity_xy_std=np.ones(2),
             with_lidar=True,
-            with_goal=True
+            with_goal=True,
+            renderer_kwargs=renderer_kwargs
         )
 
     def _sample_positions(self):
@@ -84,7 +86,7 @@ class GoalEnv(SpaceshipEnv, ABC):
     def _reward(self) -> float:
         survival_reward = 1.0
 
-        true_goal_dist = np.linalg.norm(self.internal_state[:2] - self.goal_pos)
+        true_goal_dist = np.linalg.norm(self.ship_pos_xy - self.goal_pos)
         max_goal_dist = self.world_size * np.sqrt(2)
         normalized_goal_dist = true_goal_dist / max_goal_dist
         # function of distance decreasing from 1 (no distance) to 0 (max distance)

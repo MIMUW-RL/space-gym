@@ -10,6 +10,7 @@ import numpy as np
 from scipy.integrate import solve_ivp
 from scipy.integrate._ivp.ivp import OdeResult
 from functools import partial
+from collections import deque
 
 
 class SpaceshipEnv(gym.Env, ABC):
@@ -18,6 +19,7 @@ class SpaceshipEnv(gym.Env, ABC):
         "render.modes": ["human", "rgb_array"],
         "video.frames_per_second": 30,
     }
+    num_prev_pos_vis: int = 25
 
     def __init__(
         self,
@@ -56,12 +58,15 @@ class SpaceshipEnv(gym.Env, ABC):
         self._np_random = None
         self.seed()
         self.internal_state = self.last_action = self.elapsed_steps = self._renderer = None
+        self.prev_pos = deque(maxlen=self.num_prev_pos_vis)
 
     def reset(self):
         self._reset()
         if self._renderer is not None:
             self._renderer.move_planets()
         self.elapsed_steps = 0
+        self.prev_pos.clear()
+        self.prev_pos.append(self.internal_state[:2])
         return self.external_state
 
     def step(self, raw_action):
@@ -73,6 +78,7 @@ class SpaceshipEnv(gym.Env, ABC):
         self.last_action = action
 
         done = self._update_state(action)
+        self.prev_pos.append(self.internal_state[:2])
         self.elapsed_steps += 1
         if self.elapsed_steps >= self.max_episode_steps:
             done = True
@@ -87,7 +93,7 @@ class SpaceshipEnv(gym.Env, ABC):
             if self.goal_pos is not None:
                 self._renderer.move_goal(self.goal_pos)
 
-        return self._renderer.render(self.internal_state[:3], self.last_action, mode)
+        return self._renderer.render(self.internal_state[:3], self.last_action, self.prev_pos, mode)
 
     def seed(self, seed=None):
         self._np_random, seed = gym.utils.seeding.np_random(seed)

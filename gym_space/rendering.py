@@ -2,7 +2,7 @@ from typing import List
 import os
 import numpy as np
 from gym.envs.classic_control import rendering
-
+from collections import deque
 
 from .planet import Planet
 from .helpers import angle_to_unit_vector
@@ -120,10 +120,22 @@ class Renderer:
         self._torque_img.add_attr(self._torque_img_transform)
         self._torque_img.add_attr(self.ship_transform)
 
+    def _draw_ship_trace(self, prev_pos: deque):
+        color_decay = 0.9
+        color_diff = 1
+        for i in range(1, len(prev_pos)):
+            pos_a = self._world_to_screen(prev_pos[- i])
+            pos_b = self._world_to_screen(prev_pos[- i - 1])
+            line = rendering.Line(pos_a, pos_b)
+            color = 3 * [1 - color_diff]
+            line.set_color(*color)
+            color_diff *= color_decay
+            self.viewer.add_onetime(line)
+
     def _world_to_screen(self, world_pos: np.array):
         return self.world_scale * (world_pos - self.world_translation)
 
-    def render(self, ship_world_position: np.array, action: np.array, mode: str):
+    def render(self, ship_world_position: np.array, action: np.array, prev_pos: deque, mode: str):
         self.viewer.add_onetime(self._torque_img)
         self._torque_img_transform.set_rotation(4)
         ship_screen_position = self._world_to_screen(ship_world_position[:2])
@@ -136,4 +148,5 @@ class Renderer:
         exhaust_color = 3 * [1 - thrust_action]
         self.exhaust.set_color(*exhaust_color)
         self._torque_img_transform.scale = (-torque_action, np.abs(torque_action))
+        self._draw_ship_trace(prev_pos)
         return self.viewer.render(mode == "rgb_array")

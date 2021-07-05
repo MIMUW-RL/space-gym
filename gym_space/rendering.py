@@ -16,7 +16,9 @@ class Renderer:
         ship_body_radius: float,
         planets: List[Planet],
         world_size: float,
-        with_goal: bool
+        with_goal: bool,
+        num_prev_pos_vis: int = 30,
+        prev_pos_color_decay: float = 0.85
     ):
         self.world_translation = np.full(2, -world_size/2)
         self.world_scale = MAX_SCREEN_SIZE / world_size
@@ -25,7 +27,6 @@ class Renderer:
         self.ship_transform = rendering.Transform()
         self.planets = planets
         self._init_planets()
-        self.move_planets()
         self._init_engine(ship_body_radius)
         self.exhaust = None
         self._init_exhaust(ship_body_radius)
@@ -34,10 +35,16 @@ class Renderer:
         self.goal_transform = None
         if self.with_goal:
             self._init_goal()
+        self.prev_ship_pos = deque(maxlen=num_prev_pos_vis)
+        self.prev_pos_color_decay = prev_pos_color_decay
 
-    def move_planets(self):
+    def _move_planets(self):
         for planet, transform in zip(self.planets, self._planets_transforms):
             transform.set_translation(*self._world_to_screen(planet.center_pos))
+
+    def reset(self):
+        self._move_planets()
+        self.prev_ship_pos.clear()
 
     def move_goal(self, goal_pos):
         assert self.with_goal
@@ -120,25 +127,23 @@ class Renderer:
         self._torque_img.add_attr(self._torque_img_transform)
         self._torque_img.add_attr(self.ship_transform)
 
-    def _draw_ship_trace(self, prev_pos: deque):
-        color_decay = 0.9
-        color_diff = 1
-        for i in range(1, len(prev_pos)):
-            pos_a = self._world_to_screen(prev_pos[- i])
-            pos_b = self._world_to_screen(prev_pos[- i - 1])
-            line = rendering.Line(pos_a, pos_b)
+    def _draw_ship_trace(self):
+        color_diff = 1.0
+        for i in range(1, len(self.prev_ship_pos)):
+            line = rendering.Line(self.prev_ship_pos[- i], self.prev_ship_pos[- i - 1])
             color = 3 * [1 - color_diff]
             line.set_color(*color)
-            color_diff *= color_decay
+            color_diff *= self.prev_pos_color_decay
             self.viewer.add_onetime(line)
 
     def _world_to_screen(self, world_pos: np.array):
         return self.world_scale * (world_pos - self.world_translation)
 
-    def render(self, ship_world_position: np.array, action: np.array, prev_pos: deque, mode: str):
+    def render(self, ship_world_position: np.array, action: np.array, mode: str):
         self.viewer.add_onetime(self._torque_img)
         self._torque_img_transform.set_rotation(4)
         ship_screen_position = self._world_to_screen(ship_world_position[:2])
+        self.prev_ship_pos.append(ship_screen_position)
         self.ship_transform.set_translation(*ship_screen_position)
         self.ship_transform.set_rotation(ship_world_position[2])
         if action is not None:
@@ -148,5 +153,5 @@ class Renderer:
         exhaust_color = 3 * [1 - thrust_action]
         self.exhaust.set_color(*exhaust_color)
         self._torque_img_transform.scale = (-torque_action, np.abs(torque_action))
-        self._draw_ship_trace(prev_pos)
+        self._draw_ship_trace()
         return self.viewer.render(mode == "rgb_array")

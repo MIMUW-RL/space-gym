@@ -84,7 +84,7 @@ class GoalEnv(SpaceshipEnv, ABC):
     def _reward(self) -> float:
         survival_reward = 1.0
 
-        true_goal_dist = np.linalg.norm(self.internal_state[:2] - self.goal_pos)
+        true_goal_dist = np.linalg.norm(self.ship_pos_xy - self.goal_pos)
         max_goal_dist = self.world_size * np.sqrt(2)
         normalized_goal_dist = true_goal_dist / max_goal_dist
         # function of distance decreasing from 1 (no distance) to 0 (max distance)

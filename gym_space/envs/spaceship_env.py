@@ -10,7 +10,6 @@ import numpy as np
 from scipy.integrate import solve_ivp
 from scipy.integrate._ivp.ivp import OdeResult
 from functools import partial
-from collections import deque
 
 
 class SpaceshipEnv(gym.Env, ABC):
@@ -31,7 +30,8 @@ class SpaceshipEnv(gym.Env, ABC):
         max_abs_angular_velocity: float,
         velocity_xy_std: np.array,
         with_lidar: bool,
-        with_goal: bool
+        with_goal: bool,
+        renderer_kwargs: dict = None
     ):
         self.ship = ship
         self.planets = planets
@@ -58,15 +58,13 @@ class SpaceshipEnv(gym.Env, ABC):
         self._np_random = None
         self.seed()
         self.internal_state = self.last_action = self.elapsed_steps = self._renderer = None
-        self.prev_pos = deque(maxlen=self.num_prev_pos_vis)
+        self.renderer_kwargs = renderer_kwargs or dict()
 
     def reset(self):
         self._reset()
         if self._renderer is not None:
-            self._renderer.move_planets()
+            self._renderer.reset()
         self.elapsed_steps = 0
-        self.prev_pos.clear()
-        self.prev_pos.append(self.internal_state[:2])
         return self.external_state
 
     def step(self, raw_action):
@@ -78,7 +76,6 @@ class SpaceshipEnv(gym.Env, ABC):
         self.last_action = action
 
         done = self._update_state(action)
-        self.prev_pos.append(self.internal_state[:2])
         self.elapsed_steps += 1
         if self.elapsed_steps >= self.max_episode_steps:
             done = True
@@ -89,11 +86,11 @@ class SpaceshipEnv(gym.Env, ABC):
         if self._renderer is None:
             from gym_space.rendering import Renderer
 
-            self._renderer = Renderer(15, self.planets, self.world_size, self.with_goal)
+            self._renderer = Renderer(15, self.planets, self.world_size, self.with_goal, *self.renderer_kwargs)
             if self.goal_pos is not None:
                 self._renderer.move_goal(self.goal_pos)
 
-        return self._renderer.render(self.internal_state[:3], self.last_action, self.prev_pos, mode)
+        return self._renderer.render(self.ship_pos, self.last_action, mode)
 
     def seed(self, seed=None):
         self._np_random, seed = gym.utils.seeding.np_random(seed)
@@ -103,8 +100,7 @@ class SpaceshipEnv(gym.Env, ABC):
         self._boundary_events = []
 
         def planet_event(planet: Planet, _t, state):
-            ship_xy_pos = state[:2]
-            return planet.distance(ship_xy_pos)
+            return planet.distance(self.get_ship_pos_xy(state))
 
         for planet_ in self.planets:
             event = partial(planet_event, planet_)
@@ -112,19 +108,19 @@ class SpaceshipEnv(gym.Env, ABC):
             self._boundary_events.append(event)
 
         def world_max_event(_t, state):
-            return np.min(self.world_size / 2 - state[:2])
+            return np.min(self.world_size / 2 - self.get_ship_pos_xy(state))
 
         world_max_event.terminal = True
         self._boundary_events.append(world_max_event)
 
         def world_min_event(_t, state):
-            return np.min(self.world_size / 2 + state[:2])
+            return np.min(self.world_size / 2 + self.get_ship_pos_xy(state))
 
         world_min_event.terminal = True
         self._boundary_events.append(world_min_event)
 
         def angular_velocity_event(_t, state):
-            return self.max_abs_angular_velocity - np.abs(state[5])
+            return self.max_abs_angular_velocity - np.abs(self.get_ship_vel_angle(state))
 
         angular_velocity_event.terminal = True
         self._boundary_events.append(angular_velocity_event)
@@ -133,7 +129,7 @@ class SpaceshipEnv(gym.Env, ABC):
         engine_action, thruster_action = action
         engine_force = engine_action * self.ship.max_engine_force
         thruster_torque = thruster_action * self.ship.max_thruster_torque
-        angle = state[2]
+        angle = self.get_ship_pos_angle(state)
         engine_force_direction = -angle_to_unit_vector(angle)
         force_xy = engine_force_direction * engine_force
         return np.array([*force_xy, thruster_torque])
@@ -141,19 +137,18 @@ class SpaceshipEnv(gym.Env, ABC):
     def _vector_field(self, action, _time, state: np.array):
         external_force_and_torque = self._external_force_and_torque(action, state)
 
-        position, velocity = np.split(state, 2)
         external_force_xy, external_torque = np.split(external_force_and_torque, [2])
 
         force_xy = external_force_xy
         for planet in self.planets:
-            force_xy += planet.gravity(position[:2], self.ship.mass)
+            force_xy += planet.gravity(self.get_ship_pos_xy(state), self.ship.mass)
         acceleration_xy = force_xy / self.ship.mass
 
         torque = external_torque
         acceleration_angle = torque / self.ship.moi
 
         acceleration = np.concatenate([acceleration_xy, acceleration_angle])
-        return np.concatenate([velocity, acceleration])
+        return np.concatenate([self.get_ship_vel(state), acceleration])
 
     def _update_state(self, action):
         ode_solution = solve_ivp(
@@ -173,6 +168,64 @@ class SpaceshipEnv(gym.Env, ABC):
     def _wrap_angle(self):
         self.internal_state[2] %= 2 * np.pi
 
+    @staticmethod
+    def get_ship_pos(state):
+        return state[:3]
+
+    @staticmethod
+    def get_ship_pos_xy(state):
+        return state[:2]
+
+    @staticmethod
+    def get_ship_pos_angle(state):
+        return state[2]
+
+    @staticmethod
+    def get_ship_vel(state):
+        return state[3:6]
+
+    @staticmethod
+    def get_ship_vel_xy(state):
+        return state[3:5]
+
+    @staticmethod
+    def get_ship_vel_angle(state):
+        return state[5]
+
+    def get_planets_lidars(self, external_state: np.array):
+        if not self.with_lidar:
+            return None
+        return external_state[-2 * len(self.planets):].reshape(-1, 2)
+
+    def get_goal_lidar(self, external_state: np.array):
+        if not (self.with_lidar and self.with_goal):
+            return None
+        return external_state[-2:]
+
+    @property
+    def ship_pos(self):
+        return self.get_ship_pos(self.internal_state)
+
+    @property
+    def ship_pos_xy(self):
+        return self.get_ship_pos_xy(self.internal_state)
+
+    @property
+    def ship_pos_angle(self):
+        return self.get_ship_pos_angle(self.internal_state)
+
+    @property
+    def ship_vel(self):
+        return self.get_ship_vel(self.internal_state)
+
+    @property
+    def ship_vel_xy(self):
+        return self.get_ship_vel_xy(self.internal_state)
+
+    @property
+    def ship_vel_angle(self):
+        return self.get_ship_vel_angle(self.internal_state)
+
     @property
     def external_state(self):
         external_state = self.internal_state.copy()
@@ -188,8 +241,8 @@ class SpaceshipEnv(gym.Env, ABC):
         external_state = [external_state[:2], angle_repr, external_state[3:]]
 
         def create_lidar_vector(obj_pos, planet_radius = 0.0):
-            ship_center_obj_vec = obj_pos - self.internal_state[:2]
-            ship_obj_angle = vector_to_angle(ship_center_obj_vec) - np.pi / 2 - self.internal_state[2]
+            ship_center_obj_vec = obj_pos - self.ship_pos_xy
+            ship_obj_angle = vector_to_angle(ship_center_obj_vec) - np.pi / 2 - self.ship_pos_angle
             ship_obj_angle %= 2 * np.pi
             scale = (np.linalg.norm(ship_center_obj_vec) - planet_radius) * 2 / self.world_size
             return angle_to_unit_vector(ship_obj_angle) * scale

@@ -58,7 +58,7 @@ class SpaceshipEnv(gym.Env, ABC):
         self._np_random = None
         self.seed()
         self.internal_state = self.last_action = self.elapsed_steps = self._renderer = None
-        self.renderer_kwargs = renderer_kwargs or dict()
+        self.renderer_kwargs = dict() if renderer_kwargs is None else renderer_kwargs
 
     def reset(self):
         self._reset()

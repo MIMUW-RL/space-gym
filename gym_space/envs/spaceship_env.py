@@ -86,7 +86,7 @@ class SpaceshipEnv(gym.Env, ABC):
         if self._renderer is None:
             from gym_space.rendering import Renderer
 
-            self._renderer = Renderer(15, self.planets, self.world_size, self.with_goal, *self.renderer_kwargs)
+            self._renderer = Renderer(15, self.planets, self.world_size, self.with_goal, **self.renderer_kwargs)
             if self.goal_pos is not None:
                 self._renderer.move_goal(self.goal_pos)
 

@@ -15,7 +15,7 @@ class GoalEnv(SpaceshipEnv, ABC):
 
     def __init__(
         self,
-        n_planets: int = 5,
+        n_planets: int = 1,
         survival_reward_scale: float = 0.5,
         goal_dist_reward_scale: float = 0.4,
         economy_reward_scale: float = 0.1,
@@ -80,9 +80,6 @@ class GoalEnv(SpaceshipEnv, ABC):
         angular_velocity = self._np_random.standard_normal() * max_abs_ang_vel / 3
         angular_velocity = np.clip(angular_velocity, -max_abs_ang_vel, max_abs_ang_vel)
         self.internal_state = np.array([*ship_pos, ship_angle, *velocities_xy, angular_velocity])
-
-    def reward(self, action, prev_state):
-        return self._reward()
 
     def _reward(self) -> float:
         survival_reward = 1.0

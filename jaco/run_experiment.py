@@ -15,7 +15,7 @@ ALGORITHMS = ['ddpg', 'sac', 'td3']
 
 parser = argparse.ArgumentParser(description='Gym-Space experiment configuration')
 parser.add_argument('algorithm', choices=ALGORITHMS)
-parser.add_argument('env', choices = ['Orbit', 'DoNotCrashContinuous', 'GoalContinuous'])
+parser.add_argument('env' )
 parser.add_argument('-c', '--config', type=str, required=True)
 parser.add_argument('--spp', nargs='?', const=True, default=False)
 parser.add_argument('--n_runs', type=int, default=1)
@@ -98,6 +98,12 @@ if __name__ == '__main__':
         id='Orbit-v0',
         entry_point='gym_space.envs.orbit:OrbitEnv',
         max_episode_steps=300,
+    )
+
+    gym.envs.register(
+        id='GoalContinuous2-v0',
+        entry_point='gym_space.envs.goal:GoalContinuousEnv',
+        kwargs = {'n_planets' : 2},
     )
 
     config['env_name']  = args.env + '-v0'

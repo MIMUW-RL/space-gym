@@ -24,3 +24,15 @@ register(
     id="GoalContinuous-v0",
     entry_point="gym_space.envs:GoalContinuousEnv",
 )
+
+# Orbit
+
+register(
+    id="KeplerDiscrete-v0",
+    entry_point = "gym_space.envs:KeplerDiscreteEnv",
+)
+
+register(
+    id="KeplerContinuous-v0",
+    entry_point = "gym_space.envs:KeplerContinuousEnv",
+)

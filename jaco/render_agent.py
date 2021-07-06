@@ -20,18 +20,16 @@ def visualise_episode_vanilla(algo):
     while(not done):       
         obs = algo.process_obs(obs)
         obs = algo.replay_buffer.normalize( obs )        
-        action, _ = algo._actor.act( obs , deterministic=True)
-        
-        
+        action, _ = algo._actor.act( obs , deterministic=True)                
         action = algo.process_action(action, obs)
         obs, r, done, _ = algo.env.step(action)
         frame = algo.env.render(mode = "rgb_array")
         plt.imsave(f'gifs/{i:05d}.png', frame)
+        print(obs)
         ep_ret += r
         i+=1
     print(f"ep_ret={ep_ret}")
         
-model_path = "models/Jun30_13-12-28.489Orbit-v0-g0.99-spe5000-TD3-a_lr0.0003-rf0-noi0.2-obs_normFalse-pi_ufr2.pkl"
 
 env = OrbitEnv()
 
@@ -41,7 +39,12 @@ gym.envs.register(
     max_episode_steps=300,
 )
 
-ENV_NAME = "Orbit-v0"
+
+
+#model_path = "models/Jun30_13-12-28.489Orbit-v0-g0.99-spe5000-TD3-a_lr0.0003-rf0-noi0.2-obs_normFalse-pi_ufr2.pkl"
+#ENV_NAME = "Orbit-v0"
+model_path = "models/Jul05_14-13-04.645GoalContinuous-v0-g0.99-spe5000-TD3-a_lr0.0003-rf0-noi0.2-obs_normFalse-pi_ufr2.pkl"
+ENV_NAME = "GoalContinuous-v0"
 
 td3 = TD3(
     env_name=ENV_NAME,        

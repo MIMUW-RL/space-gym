@@ -106,6 +106,12 @@ if __name__ == '__main__':
         kwargs = {'n_planets' : 2},
     )
 
+    gym.envs.register(
+        id='Kepler-v0',
+        entry_point='gym_space.envs.kepler:KeplerContinuousEnv',
+    )
+    
+
     config['env_name']  = args.env + '-v0'
 
     algorithm = get_algorithm(args.algorithm, args.spp)

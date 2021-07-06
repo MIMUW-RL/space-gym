@@ -45,10 +45,16 @@ gym.envs.register(
     kwargs = {'n_planets': 1},
 )
 
+gym.envs.register(
+    id="GoalContinuous2-v0",
+    entry_point="gym_space.envs:GoalContinuousEnv",
+    kwargs = {'n_planets': 2},
+)
+
 #model_path = "models/Jun30_13-12-28.489Orbit-v0-g0.99-spe5000-TD3-a_lr0.0003-rf0-noi0.2-obs_normFalse-pi_ufr2.pkl"
 #ENV_NAME = "Orbit-v0"
-model_path = "models/Jul05_14-13-04.645GoalContinuous-v0-g0.99-spe5000-TD3-a_lr0.0003-rf0-noi0.2-obs_normFalse-pi_ufr2.pkl"
-ENV_NAME = "GoalContinuous1-v0"
+model_path = "models/Jul05_22-42-01.624GoalContinuous2-v0-g0.99-spe5000-TD3-a_lr0.0003-rf0-noi0.2-obs_normFalse-pi_ufr2.pkl"
+ENV_NAME = "GoalContinuous2-v0"
 
 td3 = TD3(
     env_name=ENV_NAME,        

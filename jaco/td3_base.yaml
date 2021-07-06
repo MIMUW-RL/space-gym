@@ -5,7 +5,7 @@ actor_lr : 0.0003
 critic_lr : 0.0003
 obs_norm : False
 iterations: 10000
-buffer_size: 1000000
+buffer_size: 200000
 gamma: 0.99
 update_batch_size: 100
 test_episodes: 10
@@ -13,7 +13,7 @@ steps_per_epoch: 5000
 tensorboard_dir: td3_logs"
 log_dir: "td3_logs/basic_logs"
 log_all: True
-max_frames: 1000000
+max_frames: 200000
 stats_freq: 1
 random_frames: 0
 #gym-space specific

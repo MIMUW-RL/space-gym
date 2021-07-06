@@ -37,6 +37,7 @@ class Renderer:
             self._init_goal()
         self.prev_ship_pos = deque(maxlen=num_prev_pos_vis)
         self.prev_pos_color_decay = prev_pos_color_decay
+        self.reset()
 
     def _move_planets(self):
         for planet, transform in zip(self.planets, self._planets_transforms):

@@ -24,7 +24,7 @@ class GoalEnv(SpaceshipEnv, ABC):
     ):
         self._n_planets = n_planets
         planets = [Planet(mass=self._planets_mass, radius=self._planets_radius) for _ in range(self._n_planets)]
-        ship = ShipParams(mass=1, moi=0.05, max_engine_force=0.3, max_thruster_torque=0.05)
+        ship = ShipParams(mass=1, moi=0.05, max_engine_force=0.3, max_thruster_force=0.05)
 
         assert survival_reward_scale >= 0 and goal_dist_reward_scale >= 0 and economy_reward_scale >= 0, "Reward scales have to be positive"
         assert survival_reward_scale + goal_dist_reward_scale + economy_reward_scale == 1, "Reward scales have to sum up to 1.0"
@@ -41,7 +41,7 @@ class GoalEnv(SpaceshipEnv, ABC):
             world_size=3.0,
             step_size=0.07,
             max_abs_vel_angle=5.0,
-            velocity_xy_std=np.ones(2),
+            vel_xy_std=np.ones(2),
             with_lidar=True,
             with_goal=True,
             renderer_kwargs=renderer_kwargs
@@ -79,12 +79,12 @@ class GoalEnv(SpaceshipEnv, ABC):
         max_abs_ang_vel = 0.7 * self.max_abs_vel_angle
         angular_velocity = self._np_random.standard_normal() * max_abs_ang_vel / 3
         angular_velocity = np.clip(angular_velocity, -max_abs_ang_vel, max_abs_ang_vel)
-        self.dynamic_state.set_ship_state(ship_pos, ship_angle, velocities_xy, angular_velocity)
+        self._ship_state.set(ship_pos, ship_angle, velocities_xy, angular_velocity)
 
     def _reward(self) -> float:
         survival_reward = 1.0
 
-        true_goal_dist = np.linalg.norm(self.dynamic_state.ship_pos_xy - self.goal_pos)
+        true_goal_dist = np.linalg.norm(self._ship_state.pos_xy - self.goal_pos)
         max_goal_dist = self.world_size * np.sqrt(2)
         normalized_goal_dist = true_goal_dist / max_goal_dist
         # function of distance decreasing from 1 (no distance) to 0 (max distance)

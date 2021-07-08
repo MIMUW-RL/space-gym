@@ -9,170 +9,202 @@ from . import helpers
 from .ship_params import ShipParams
 from .planet import Planet
 
-# gravitational constant
-G = 6.6743e-11
 
-def require_ship_state(method: Callable):
+def must_be_defined(method: Callable):
+    """Property decorator that checks if ship state is defined"""
     def decorated_method(self, *args, **kwargs):
-        assert self._ship_state is not None, "ship state is not initialized"
+        assert self.is_defined, "ShipState set() method has to be called before accessing ship state"
         return method(self, *args, **kwargs)
     return decorated_method
 
 @dataclass
-class DynamicState:
+class ShipState:
+    """Holds state of the system and provides method to advance its evolution"""
     ship_params: ShipParams
     planets: list[Planet]
-    _ship_state: np.array = field(init=False, default=None)
-    _boundary_events: list[Callable] = field(init=False)
+    _state_vec: np.array = field(init=False, default=None)
+    _termination_events: list[Callable] = field(init=False)
     world_size: InitVar[float]
     max_abs_vel_angle: InitVar[float]
 
-    def __post_init__(self, world_size, max_abs_vel_angle):
-        self._boundary_events = make_boundary_events(world_size, max_abs_vel_angle, self.planets)
+    def __post_init__(self, world_size: float, max_abs_vel_angle: float):
+        self._termination_events = make_termination_events(world_size, max_abs_vel_angle, self.planets)
 
-    def set_ship_state(self, pos_xy: np.array, pos_angle: float, vel_xy: np.array, vel_angle: float):
+    def set(self, pos_xy: np.array, pos_angle: float, vel_xy: np.array, vel_angle: float):
         assert pos_xy.shape == vel_xy.shape == (2,)
-        self._ship_state = np.array([*pos_xy, pos_angle, *vel_xy, vel_angle])
+        self._state_vec = np.array([*pos_xy, pos_angle, *vel_xy, vel_angle])
 
     def step(self, action: np.array, step_size: float) -> bool:
-        self._ship_state, done = make_step(
+        """Advance evolution of the system under action by step_size seconds
+
+        Returns:
+            True if the episode ended (any of termination events occurred),
+            False otherwise
+        """
+        self._state_vec, done = make_step(
             self.ship_params,
             self.planets,
-            self._ship_state,
+            self._state_vec,
             action,
             step_size,
-            self._boundary_events
+            self._termination_events
         )
         return done
 
     @property
-    @require_ship_state
-    def ship_pos(self):
-        return get_ship_pos(self._ship_state)
+    def is_defined(self):
+        return self._state_vec is not None
 
     @property
-    @require_ship_state
-    def ship_pos_xy(self):
-        return get_ship_pos_xy(self._ship_state)
+    @must_be_defined
+    def full_pos(self) -> np.array:
+        return get_ship_full_pos(self._state_vec)
 
     @property
-    @require_ship_state
-    def ship_pos_angle(self):
-        return get_ship_pos_angle(self._ship_state)
+    @must_be_defined
+    def pos_xy(self) -> np.array:
+        return get_ship_pos_xy(self._state_vec)
 
     @property
-    @require_ship_state
-    def ship_vel(self):
-        return get_ship_vel(self._ship_state)
+    @must_be_defined
+    def pos_angle(self) -> float:
+        return get_ship_pos_angle(self._state_vec)
 
     @property
-    @require_ship_state
-    def ship_vel_xy(self):
-        return get_ship_vel_xy(self._ship_state)
+    @must_be_defined
+    def full_vel(self) -> np.array:
+        return get_ship_full_vel(self._state_vec)
 
     @property
-    @require_ship_state
-    def ship_vel_angle(self):
-        return get_ship_vel_angle(self._ship_state)
+    @must_be_defined
+    def vel_xy(self) -> np.array:
+        return get_ship_vel_xy(self._state_vec)
+
+    @property
+    @must_be_defined
+    def vel_angle(self) -> float:
+        return get_ship_vel_angle(self._state_vec)
 
 
-def get_ship_pos(ship_state: np.array) -> np.array:
-    return ship_state[:3]
+def make_step(
+    ship_params: ShipParams,
+    planets: list[Planet],
+    state_vec: np.array,
+    action: np.array,
+    step_size: float,
+    termination_events: list[Callable]
+):
+    """Advance evolution of the system by at most step_size seconds.
 
-def get_ship_pos_xy(ship_state: np.array) -> np.array:
-    return ship_state[:2]
+    Stop earlier if any of termination_events occurred.
 
-def get_ship_pos_angle(ship_state: np.array) -> float:
-    return ship_state[2]
-
-def get_ship_vel(ship_state: np.array) -> np.array:
-    return ship_state[3:6]
-
-def get_ship_vel_xy(ship_state: np.array) -> np.array:
-    return ship_state[3:5]
-
-def get_ship_vel_angle(ship_state: np.array) -> float:
-    return ship_state[5]
-
-def make_step(ship_params: ShipParams, planets: list[Planet], ship_state: np.array, action: np.array, step_size: float, events: list[Callable]):
+    Returns:
+        New state_vec and
+        True if a termination event occurred, False otherwise.
+    """
     # wrong events type
     # noinspection PyTypeChecker
     ode_solution = solve_ivp(
-        partial(vector_field, ship_params, planets, action),
+        partial(ship_vector_field, ship_params, planets, action),
         t_span=(0, step_size),
-        y0=ship_state,
-        events=events
+        y0=state_vec,
+        events=termination_events
     )
     ode_solution = cast(OdeResult, ode_solution)
     assert ode_solution.success, ode_solution.message
-    ship_state = ode_solution.y[:, -1]
-    wrap_angle(ship_state)
-    # done if any of self._boundary_events occurred
+    state_vec = ode_solution.y[:, -1]
+    wrap_ship_angle(state_vec)
+    # done if any of termination_events occurred
     done = ode_solution.status == 1
-    return ship_state, done
+    return state_vec, done
 
-def external_force_and_torque(ship_params: ShipParams, action: np.array, state: np.array):
-    engine_action, thruster_action = action
-    engine_force = engine_action * ship_params.max_engine_force
-    thruster_torque = thruster_action * ship_params.max_thruster_torque
-    angle = get_ship_pos_angle(state)
-    engine_force_direction = -helpers.angle_to_unit_vector(angle)
-    force_xy = engine_force_direction * engine_force
-    return np.array([*force_xy, thruster_torque])
+def ship_vector_field(ship_params: ShipParams, planets: list[Planet], action: np.array, _time, state_vec: np.array):
+    """Compute RHS of differential equation for ship dynamic"""
+    acceleration = ship_acceleration(ship_params, planets, action, state_vec)
+    return np.concatenate([get_ship_full_vel(state_vec), acceleration])
 
-def vector_field(ship_params: ShipParams, planets: list[Planet], action: np.array, _time, ship_state: np.array):
-    external_force_and_torque_ = external_force_and_torque(ship_params, action, ship_state)
-    external_force_xy, external_torque = np.split(external_force_and_torque_, [2])
+def ship_acceleration(ship_params: ShipParams, planets: list[Planet], action: np.array, state_vec: np.array):
+    """Compute ship acceleration"""
+    external_force = ship_external_force(ship_params, action, state_vec)
+    external_force_xy, external_force_angle = np.split(external_force, [2])
 
     force_xy = external_force_xy
     for planet in planets:
-        force_xy += gravity(get_ship_pos_xy(ship_state), planet.center_pos, ship_params.mass, planet.mass)
+        force_xy += helpers.gravity(get_ship_pos_xy(state_vec), planet.center_pos, ship_params.mass, planet.mass)
     acceleration_xy = force_xy / ship_params.mass
 
-    torque = external_torque
-    acceleration_angle = torque / ship_params.moi
+    acceleration_angle = external_force_angle / ship_params.moi
 
-    acceleration = np.concatenate([acceleration_xy, acceleration_angle])
-    return np.concatenate([get_ship_vel(ship_state), acceleration])
+    return np.concatenate([acceleration_xy, acceleration_angle])
 
-def gravity(from_pos: np.array, toward_pos: np.array, from_mass: float, toward_mass: float):
-    assert from_pos.shape == toward_pos.shape
-    pos_diff = toward_pos - from_pos
-    center_distance = np.linalg.norm(pos_diff)
-    force_direction = pos_diff / center_distance
-    scalar_force = G * from_mass * toward_mass / center_distance ** 2
-    return force_direction * scalar_force
+def ship_external_force(ship_params: ShipParams, action: np.array, state: np.array):
+    """Compute force acting on the ship due to action taken"""
+    engine_action, thruster_action = action
+    engine_force_scalar = engine_action * ship_params.max_engine_force
+    angle = get_ship_pos_angle(state)
+    engine_force_direction = -helpers.angle_to_unit_vector(angle)
+    force_xy = engine_force_direction * engine_force_scalar
+    force_angle = thruster_action * ship_params.max_thruster_force
+    return np.array([*force_xy, force_angle])
 
-def wrap_angle(ship_state: np.array):
-    ship_state[2] %= 2 * np.pi
+def wrap_ship_angle(state_vec: np.array):
+    state_vec[2] %= 2 * np.pi
 
-def make_boundary_events(world_size: float, max_abs_angular_velocity: float, planets: list[Planet]) -> list[Callable]:
+def make_termination_events(world_size: float, max_abs_vel_angle: float, planets: list[Planet]) -> list[Callable]:
+    """Create continuous function that are positive iff state is not terminal"""
     events = []
 
-    def planet_event(planet: Planet, _t, ship_state: np.array):
-        return np.linalg.norm(planet.center_pos - get_ship_pos_xy(ship_state)) - planet.radius
+    def planet_event(planet: Planet, _t, state_vec: np.array):
+        """Crashing into a planet"""
+        return np.linalg.norm(planet.center_pos - get_ship_pos_xy(state_vec)) - planet.radius
 
     for planet_ in planets:
         event = partial(planet_event, planet_)
         event.terminal = True
         events.append(event)
 
-    def world_max_event(_t, ship_state: np.array):
-        return np.min(world_size / 2 - get_ship_pos_xy(ship_state))
+    def world_max_event(_t, state_vec: np.array):
+        """Going over top or right world boundary"""
+        return np.min(world_size / 2 - get_ship_pos_xy(state_vec))
 
     world_max_event.terminal = True
     events.append(world_max_event)
 
-    def world_min_event(_t, ship_state: np.array):
-        return np.min(world_size / 2 + get_ship_pos_xy(ship_state))
+    def world_min_event(_t, state_vec: np.array):
+        """Going over bottom or left world boundary"""
+        return np.min(world_size / 2 + get_ship_pos_xy(state_vec))
 
     world_min_event.terminal = True
     events.append(world_min_event)
 
-    def angular_velocity_event(_t, ship_state: np.array):
-        return max_abs_angular_velocity - np.abs(get_ship_vel_angle(ship_state))
+    def angular_velocity_event(_t, state_vec: np.array):
+        """Exceeding maximal angular velocity"""
+        return max_abs_vel_angle - np.abs(get_ship_vel_angle(state_vec))
 
     angular_velocity_event.terminal = True
     events.append(angular_velocity_event)
 
     return events
+
+
+# ------------------------ #
+#  Getters for ship state  #
+# ------------------------ #
+
+def get_ship_full_pos(state_vec: np.array) -> np.array:
+    return state_vec[:3]
+
+def get_ship_pos_xy(state_vec: np.array) -> np.array:
+    return state_vec[:2]
+
+def get_ship_pos_angle(state_vec: np.array) -> float:
+    return state_vec[2]
+
+def get_ship_full_vel(state_vec: np.array) -> np.array:
+    return state_vec[3:6]
+
+def get_ship_vel_xy(state_vec: np.array) -> np.array:
+    return state_vec[3:5]
+
+def get_ship_vel_angle(state_vec: np.array) -> float:
+    return state_vec[5]

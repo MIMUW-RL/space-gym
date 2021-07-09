@@ -43,6 +43,7 @@ class DoNotCrashEnv(SpaceshipEnv, ABC):
     def _reward(self) -> float:
         return 100 / self.max_episode_steps
 
+
 class DoNotCrashDiscreteEnv(DoNotCrashEnv, DiscreteSpaceshipEnv):
     pass
 

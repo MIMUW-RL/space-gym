@@ -7,11 +7,9 @@ from .spaceship_env import SpaceshipEnv, DiscreteSpaceshipEnv, ContinuousSpacesh
 
 
 class GoalEnv(SpaceshipEnv, ABC):
-    max_episode_steps = 300
     _planets_radius = 0.3
     _planets_mass = 2e8
     _max_position_sample_tries = 30
-
 
     def __init__(
         self,
@@ -98,15 +96,13 @@ class GoalEnv(SpaceshipEnv, ABC):
         economy_reward = 1 - normalized_action_norm
         assert 0.0 <= economy_reward <= 1.0
 
-        reward_unscaled = (
+        reward = (
             self.survival_reward_scale * survival_reward +
             self.goal_dist_reward_scale * goal_dist_reward +
             self.economy_reward_scale * economy_reward
         )
-        assert 0.0 <= reward_unscaled <= 1
-
-        # sum of rewards should be <= 100.0
-        return 100 * reward_unscaled / self.max_episode_steps
+        assert 0.0 <= reward <= 1
+        return reward
 
 
 class GoalDiscreteEnv(GoalEnv, DiscreteSpaceshipEnv):

@@ -18,9 +18,9 @@ class Renderer:
         world_size: float,
         goal_pos: np.ndarray = None,
         num_prev_pos_vis: int = 30,
-        prev_pos_color_decay: float = 0.85
+        prev_pos_color_decay: float = 0.85,
     ):
-        self.world_translation = np.full(2, -world_size/2)
+        self.world_translation = np.full(2, -world_size / 2)
         self.world_scale = MAX_SCREEN_SIZE / world_size
         screen_size = np.full(2, world_size * self.world_scale, dtype=np.int64)
         self.viewer = rendering.Viewer(*screen_size)
@@ -124,8 +124,10 @@ class Renderer:
         ship_body_middle.set_color(0.5, 0.5, 0.5)
         self.viewer.add_geom(ship_body_middle)
 
-        torque_img_filename = os.path.join(os.path.dirname(__file__), "assets/torque_img.png")
-        self._torque_img = rendering.Image(torque_img_filename, 20., 20.)
+        torque_img_filename = os.path.join(
+            os.path.dirname(__file__), "assets/torque_img.png"
+        )
+        self._torque_img = rendering.Image(torque_img_filename, 20.0, 20.0)
         self._torque_img_transform = rendering.Transform()
         self._torque_img.add_attr(self._torque_img_transform)
         self._torque_img.add_attr(self.ship_transform)
@@ -151,7 +153,7 @@ class Renderer:
     def _draw_ship_trace(self):
         color_diff = 1.0
         for i in range(1, len(self.prev_ship_pos)):
-            line = rendering.Line(self.prev_ship_pos[- i], self.prev_ship_pos[- i - 1])
+            line = rendering.Line(self.prev_ship_pos[-i], self.prev_ship_pos[-i - 1])
             color = 3 * [1 - color_diff]
             line.set_color(*color)
             color_diff *= self.prev_pos_color_decay
@@ -159,5 +161,3 @@ class Renderer:
 
     def _world_to_screen(self, world_pos: np.array):
         return self.world_scale * (world_pos - self.world_translation)
-
-

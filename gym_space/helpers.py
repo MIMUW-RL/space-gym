@@ -8,10 +8,14 @@ def angle_to_unit_vector(angle: float) -> np.array:
 def vector_to_angle(vector: np.array) -> float:
     return np.arctan2(vector[1], vector[0])
 
+
 # gravitational constant
 G = 6.6743e-11
 
-def gravity(from_pos: np.array, toward_pos: np.array, from_mass: float, toward_mass: float) -> np.array:
+
+def gravity(
+    from_pos: np.array, toward_pos: np.array, from_mass: float, toward_mass: float
+) -> np.array:
     """Compute gravitational force between two bodies
 
     Returns:

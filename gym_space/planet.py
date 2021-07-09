@@ -4,6 +4,7 @@ import numpy as np
 # gravitational constant
 G = 6.6743e-11
 
+
 @dataclass
 class Planet:
     mass: float

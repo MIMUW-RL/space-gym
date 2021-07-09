@@ -18,14 +18,25 @@ class GoalEnv(SpaceshipEnv, ABC):
         goal_dist_reward_scale: float = 0.4,
         economy_reward_scale: float = 0.1,
         test_env: bool = False,
-        renderer_kwargs: dict = None
+        renderer_kwargs: dict = None,
     ):
         self._n_planets = n_planets
-        planets = [Planet(mass=self._planets_mass, radius=self._planets_radius) for _ in range(self._n_planets)]
-        ship = ShipParams(mass=1, moi=0.05, max_engine_force=0.3, max_thruster_force=0.05)
+        planets = [
+            Planet(mass=self._planets_mass, radius=self._planets_radius)
+            for _ in range(self._n_planets)
+        ]
+        ship = ShipParams(
+            mass=1, moi=0.05, max_engine_force=0.3, max_thruster_force=0.05
+        )
 
-        assert survival_reward_scale >= 0 and goal_dist_reward_scale >= 0 and economy_reward_scale >= 0, "Reward scales have to be positive"
-        assert survival_reward_scale + goal_dist_reward_scale + economy_reward_scale == 1, "Reward scales have to sum up to 1.0"
+        assert (
+            survival_reward_scale >= 0
+            and goal_dist_reward_scale >= 0
+            and economy_reward_scale >= 0
+        ), "Reward scales have to be positive"
+        assert (
+            survival_reward_scale + goal_dist_reward_scale + economy_reward_scale == 1
+        ), "Reward scales have to sum up to 1.0"
 
         self.survival_reward_scale = survival_reward_scale
         self.goal_dist_reward_scale = goal_dist_reward_scale
@@ -42,7 +53,7 @@ class GoalEnv(SpaceshipEnv, ABC):
             vel_xy_std=np.ones(2),
             with_lidar=True,
             with_goal=True,
-            renderer_kwargs=renderer_kwargs
+            renderer_kwargs=renderer_kwargs,
         )
 
     def _sample_positions(self):
@@ -55,7 +66,9 @@ class GoalEnv(SpaceshipEnv, ABC):
                 n_tries = 0
                 positions = []
                 continue
-            new_pos = self._np_random.uniform(-1.0, 1.0, 2) * (self.world_size / 2 - self._planets_radius)
+            new_pos = self._np_random.uniform(-1.0, 1.0, 2) * (
+                self.world_size / 2 - self._planets_radius
+            )
             for other_pos in positions:
                 if np.linalg.norm(other_pos - new_pos) < 3 * self._planets_radius:
                     break
@@ -86,7 +99,7 @@ class GoalEnv(SpaceshipEnv, ABC):
         max_goal_dist = self.world_size * np.sqrt(2)
         normalized_goal_dist = true_goal_dist / max_goal_dist
         # function of distance decreasing from 1 (no distance) to 0 (max distance)
-        goal_dist_reward = (normalized_goal_dist - 1)**2
+        goal_dist_reward = (normalized_goal_dist - 1) ** 2
         assert 0.0 <= goal_dist_reward <= 1.0
 
         action_norm = np.linalg.norm(self.last_action)
@@ -97,9 +110,9 @@ class GoalEnv(SpaceshipEnv, ABC):
         assert 0.0 <= economy_reward <= 1.0
 
         reward = (
-            self.survival_reward_scale * survival_reward +
-            self.goal_dist_reward_scale * goal_dist_reward +
-            self.economy_reward_scale * economy_reward
+            self.survival_reward_scale * survival_reward
+            + self.goal_dist_reward_scale * goal_dist_reward
+            + self.economy_reward_scale * economy_reward
         )
         assert 0.0 <= reward <= 1
         return reward

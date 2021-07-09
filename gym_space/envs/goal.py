@@ -109,7 +109,6 @@ class GoalEnv(SpaceshipEnv, ABC):
     def _goal_dist_reward(self) -> float:
         r = self._normal_pdf(self._ship_state.pos_xy - self.goal_pos) / self._max_normal_pdf
         assert 0.0 <= r <= 1
-        print(r)
         return r
 
     def _economy_reward(self) -> float:

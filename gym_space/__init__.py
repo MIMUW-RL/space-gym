@@ -7,7 +7,6 @@ register(
     entry_point = "gym_space.envs:KeplerDiscreteEnv",
 )
 
-
 # Goal
 
 register(

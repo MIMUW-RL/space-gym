@@ -6,15 +6,16 @@ from gym_space.planet import Planet
 from gym_space.ship_params import ShipParams
 from .spaceship_env import SpaceshipEnv, DiscreteSpaceshipEnv, ContinuousSpaceshipEnv
 
+PLANETS_WORLD_AREA_RATIO = 0.5
+MAX_PLANETS = 5
 
 class GoalEnv(SpaceshipEnv, ABC):
-    _planets_radius = 0.3
-    _planets_mass = 2e8
+    _total_planets_mass = 1e9
     _max_position_sample_tries = 30
 
     def __init__(
         self,
-        n_planets: int = 5,
+        n_planets: int = 3,
         survival_reward_scale: float = 0.5,
         goal_dist_reward_scale: float = 0.4,
         economy_reward_scale: float = 0.1,
@@ -22,9 +23,47 @@ class GoalEnv(SpaceshipEnv, ABC):
         test_env: bool = False,
         renderer_kwargs: dict = None,
     ):
+        assert n_planets <= MAX_PLANETS, f"Current sampling algorithm can't accommodate more that {MAX_PLANETS} planets"
         self._n_planets = n_planets
+        world_size = 3.0
+        """
+        S is PLANETS_WORLD_AREA_RATIO
+        n is n_planets + 2
+        W is world_size
+        r is planets_radius
+        
+        S = n pi (1.5 r)^2 / (W - r)^2
+        (W-r)^2 S = n pi 2.25 r^2
+        SW^2 - 2SWr + Sr^2 = n pi 2.25 r^2
+        
+        (S - n pi 2.25) r^2 - 2SWr + SW^2 = 0
+        
+        delta = (-2SW)^2 - 4 (S - n pi 2.25) SW^2 =
+                4 S^2 W^2 - 4 S^2 W^2 + n pi 9 S W^2 =
+                n pi 9 S W^2
+        
+        sqrt(delta) = 3 sqrt(n pi S) W
+        r = ( 2SW +- 3 sqrt(n pi S) W ) / (2S - n pi 4.5)
+          = W (2S +- 3 sqrt(n pi S)) / (2S - n pi 4.5)
+        
+        For 0 < S <= 1 r will be positive with - and negative with + sign, so
+        r = W (2S - 3 sqrt(n pi S)) / (2S - n pi 4.5)
+        """
+        n_objects = n_planets + 2
+        self.planets_radius = (
+            world_size *
+            (
+                2 * PLANETS_WORLD_AREA_RATIO -
+                3 * np.sqrt(n_objects * np.pi * PLANETS_WORLD_AREA_RATIO)
+            ) /
+            (2 * PLANETS_WORLD_AREA_RATIO - n_objects * np.pi * 4.5)
+        )
+        s = n_objects * np.pi * (1.5 * self.planets_radius) ** 2 / (world_size - self.planets_radius) ** 2
+        assert np.isclose(s, PLANETS_WORLD_AREA_RATIO)
+        planets_mass = self._total_planets_mass / n_planets
+
         planets = [
-            Planet(mass=self._planets_mass, radius=self._planets_radius)
+            Planet(mass=planets_mass, radius=self.planets_radius)
             for _ in range(self._n_planets)
         ]
         ship = ShipParams(
@@ -52,7 +91,7 @@ class GoalEnv(SpaceshipEnv, ABC):
         super().__init__(
             ship_params=ship,
             planets=planets,
-            world_size=3.0,
+            world_size=world_size,
             step_size=0.07,
             max_abs_vel_angle=5.0,
             vel_xy_std=np.ones(2),
@@ -63,27 +102,31 @@ class GoalEnv(SpaceshipEnv, ABC):
 
     def _sample_positions(self):
         positions = []
+        n_total_tries = 0
         n_tries = 0
         while len(positions) < self._n_planets + 2:
             n_tries += 1
+            n_total_tries += 1
+            assert n_total_tries < 1e4
             if n_tries > self._max_position_sample_tries:
                 # let's start again
                 n_tries = 0
                 positions = []
                 continue
             new_pos = self._np_random.uniform(-1.0, 1.0, 2) * (
-                self.world_size / 2 - self._planets_radius
+                self.world_size / 2 - 1.5 * self.planets_radius
             )
             for other_pos in positions:
-                if np.linalg.norm(other_pos - new_pos) < 3 * self._planets_radius:
+                if np.linalg.norm(other_pos - new_pos) < 3 * self.planets_radius:
                     break
             else:
                 positions.append(new_pos)
                 if self.test_env and len(positions) == self._n_planets + 2:
                     ship_pos, goal_pos = positions[-2:]
-                    if np.linalg.norm(ship_pos - goal_pos) < 0.7 * self.world_size:
+                    if np.linalg.norm(ship_pos - goal_pos) < 0.7 * (self.world_size - self.planets_radius):
                         positions = positions[:-2]
                         continue
+        print(n_total_tries)
         return positions
 
     def _reset(self):

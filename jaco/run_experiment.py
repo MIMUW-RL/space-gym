@@ -108,7 +108,7 @@ if __name__ == '__main__':
 
     gym.envs.register(
         id='Kepler-v0',
-        entry_point='gym_space.envs.kepler:KeplerContinuousEnv',
+        entry_point='gym_space.envs.kepler:KeplerContinuousEnv',        
     )
     
 

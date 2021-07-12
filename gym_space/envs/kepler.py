@@ -8,25 +8,33 @@ from .spaceship_env import SpaceshipEnv, DiscreteSpaceshipEnv, ContinuousSpacesh
 from gym_space.helpers import vector_to_angle
 
 class KeplerEnv(SpaceshipEnv, ABC):
-    max_episode_steps = 300
+    max_episode_steps = 500
     _planet_radius = 0.25
     _border_radius = 2.0
 
-    C_referencevel = 2.
+    C_referencevel = 50.
+    C_rotationvel = 1.
+    C_radius = 10.
+    ref_radius = 1.5
+
     reward_value = 1.
     
-    def _circle_orbit_reference_vel(self, pos_xy) -> np.array:
+    def _circle_orbit_reference_vel(self, pos_xy, radius = None) -> np.array:
         """ for given (x,y) ship position compute the reference 
             tangential component of the velocity, such that ship 
-            will enter the circle orbit around planet (Kepler problem)
+            will enter the circle orbit (fixed radius r) around
+            the planet (Kepler problem)
         """
         Vt = np.zeros((2,))
-        Vt[0] = 1.
-        Vt[1] = - pos_xy[0] / pos_xy[1]
+        if( radius is not None):            
+            pos_xy = (radius * pos_xy) / np.linalg.norm(pos_xy)
+        Vt[0] = np.sign(pos_xy[1])
+        Vt[1] = - np.sign(pos_xy[1]) * pos_xy[0] / pos_xy[1]        
+        
         Vt = Vt / np.linalg.norm(Vt)       
         #assume that there is a single planet planets[0] 
         alpha = 6.6743e-11 * (self.ship.mass + self.planets[0].mass)
-        p = np.linalg.norm(pos_xy)
+        p = np.linalg.norm(pos_xy)        
         Vt = Vt * np.sqrt(alpha / p)
         return Vt
 
@@ -34,10 +42,18 @@ class KeplerEnv(SpaceshipEnv, ABC):
         internal_state = self.internal_state
         pos_xy = self.get_ship_pos_xy(internal_state)
         vel_xy = self.get_ship_vel_xy(internal_state)
+        vel_ref = self._circle_orbit_reference_vel( pos_xy )
+        #print(vel_xy)
+        #print(vel_ref)
 
-        vel_ref = self._circle_orbit_reference_vel(pos_xy)
+        vel_penalty = (vel_xy[0] - vel_ref[0])**2 + (vel_xy[1] - vel_ref[1])**2
+        #print(vel_penalty)
+        rotationvel_penalty = np.abs( self.get_ship_vel_angle(self.internal_state) )
 
-        return self.reward_value  - self.C_referencevel * ( (vel_xy[0] - vel_ref[0])**2 + (vel_xy[1] - vel_ref[1])**2 )
+        radius_penalty = np.abs( np.linalg.norm( pos_xy ) - self.ref_radius ) 
+        #print(np.linalg.norm( pos_xy ))
+
+        return self.reward_value  - self.C_referencevel * vel_penalty
 
     def __init__(self):
         planet = Planet(center_pos=np.zeros(2), mass=6e8, radius=self._planet_radius)
@@ -49,8 +65,8 @@ class KeplerEnv(SpaceshipEnv, ABC):
             ship=ship,
             planets=[planet, border],            
             world_size=2 * self._border_radius,
-            step_size=0.2,
-            max_abs_angular_velocity=5.0,
+            step_size=0.1,
+            max_abs_angular_velocity = 1.5,
             velocity_xy_std=np.ones(2),
             with_lidar=False,
             with_goal=False,
@@ -62,22 +78,14 @@ class KeplerEnv(SpaceshipEnv, ABC):
         ship_planet_center_distance = self._np_random.uniform(self._planet_radius + 0.2, self._border_radius - 0.15)
         pos_xy = angle_to_unit_vector(planet_angle) * ship_planet_center_distance
         ship_angle = self._np_random.uniform(0, 2 * np.pi)
-        velocities_xy = self._np_random.standard_normal(2) * 0.07
-        #construct initial velocity for circle Kepler orbit
-        '''
-        Vt = np.zeros((2,))
-        Vt[0] = 1.
-        Vt[1] = - pos_xy[0] / pos_xy[1]
-        Vt = Vt / np.linalg.norm(Vt)        
-        alpha = 6.6743e-11 * (self.ship.mass + self.planets[0].mass)
-        p = np.linalg.norm(pos_xy)
-        Vt = Vt * np.sqrt(alpha / p)
-        velocities_xy = Vt
-        '''        
+        velocities_xy = self._np_random.standard_normal(2) * 0.05
+        #start with zero velocity
+        velocities_xy = np.zeros((2,))
         
         max_abs_ang_vel = 0.7 * self.max_abs_angular_velocity
         angular_velocity = self._np_random.standard_normal() * max_abs_ang_vel / 3
-        angular_velocity = np.clip(angular_velocity, -max_abs_ang_vel, max_abs_ang_vel)
+        angular_velocity = np.clip(angular_velocity, -max_abs_ang_vel, max_abs_ang_vel)                
+        
         self.internal_state = np.array([*pos_xy, ship_angle, *velocities_xy, angular_velocity])
 
 class KeplerDiscreteEnv(KeplerEnv, DiscreteSpaceshipEnv):

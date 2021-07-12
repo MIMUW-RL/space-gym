@@ -1,5 +1,6 @@
 from abc import ABC
 import numpy as np
+from scipy.stats import multivariate_normal
 
 from gym_space.planet import Planet
 from gym_space.ship_params import ShipParams
@@ -17,6 +18,7 @@ class GoalEnv(SpaceshipEnv, ABC):
         survival_reward_scale: float = 0.5,
         goal_dist_reward_scale: float = 0.4,
         economy_reward_scale: float = 0.1,
+        goal_dist_reward_std: float = 0.1,
         test_env: bool = False,
         renderer_kwargs: dict = None,
     ):
@@ -41,8 +43,11 @@ class GoalEnv(SpaceshipEnv, ABC):
         self.survival_reward_scale = survival_reward_scale
         self.goal_dist_reward_scale = goal_dist_reward_scale
         self.economy_reward_scale = economy_reward_scale
+        self.goal_dist_reward_std = goal_dist_reward_std
 
         self.test_env = test_env
+        self._normal_pdf = multivariate_normal(mean=np.zeros(2), cov=np.eye(2) * self.goal_dist_reward_std).pdf
+        self._max_normal_pdf = self._normal_pdf(np.zeros(2))
 
         super().__init__(
             ship_params=ship,
@@ -93,30 +98,27 @@ class GoalEnv(SpaceshipEnv, ABC):
         self._ship_state.set(ship_pos, ship_angle, velocities_xy, angular_velocity)
 
     def _reward(self) -> float:
-        survival_reward = 1.0
-
-        true_goal_dist = np.linalg.norm(self._ship_state.pos_xy - self.goal_pos)
-        max_goal_dist = self.world_size * np.sqrt(2)
-        normalized_goal_dist = true_goal_dist / max_goal_dist
-        # function of distance decreasing from 1 (no distance) to 0 (max distance)
-        goal_dist_reward = (normalized_goal_dist - 1) ** 2
-        assert 0.0 <= goal_dist_reward <= 1.0
-
-        action_norm = np.linalg.norm(self.last_action)
-        max_action_norm = np.sqrt(2)
-        normalized_action_norm = action_norm / max_action_norm
-        # function of action norm decreasing from 1 (no action) to 0 (max action)
-        economy_reward = 1 - normalized_action_norm
-        assert 0.0 <= economy_reward <= 1.0
-
         reward = (
-            self.survival_reward_scale * survival_reward
-            + self.goal_dist_reward_scale * goal_dist_reward
-            + self.economy_reward_scale * economy_reward
+            self.survival_reward_scale
+            + self.goal_dist_reward_scale * self._goal_dist_reward()
+            + self.economy_reward_scale * self._economy_reward()
         )
         assert 0.0 <= reward <= 1
         return reward
 
+    def _goal_dist_reward(self) -> float:
+        r = self._normal_pdf(self._ship_state.pos_xy - self.goal_pos) / self._max_normal_pdf
+        assert 0.0 <= r <= 1
+        return r
+
+    def _economy_reward(self) -> float:
+        action_norm = np.linalg.norm(self.last_action)
+        max_action_norm = np.sqrt(2)
+        normalized_action_norm = action_norm / max_action_norm
+        # function of action norm decreasing from 1 (no action) to 0 (max action)
+        r = 1 - normalized_action_norm
+        assert 0 <= r <= 1
+        return r
 
 class GoalDiscreteEnv(GoalEnv, DiscreteSpaceshipEnv):
     pass

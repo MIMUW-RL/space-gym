@@ -126,7 +126,6 @@ class GoalEnv(SpaceshipEnv, ABC):
                     if np.linalg.norm(ship_pos - goal_pos) < 0.7 * (self.world_size - self.planets_radius):
                         positions = positions[:-2]
                         continue
-        print(n_total_tries)
         return positions
 
     def _reset(self):

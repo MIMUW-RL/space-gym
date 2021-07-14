@@ -8,7 +8,6 @@ import time
 import neptune
 from rltoolkit import EvalsWrapper, EvalsWrapperACM
 from itertools import product
-from gym_space.envs.orbit import OrbitEnv
 
 ALGORITHMS = ['ddpg', 'sac', 'td3']
 
@@ -86,17 +85,9 @@ if __name__ == '__main__':
     with open(args.config) as f:
         config = yaml.safe_load(f)
 
-    env = OrbitEnv()
-
     gym.envs.register(
         id='DoNotCrash-v0',
         entry_point='gym_space.envs.do_not_crash:DoNotCrashContinuousEnv',
-        max_episode_steps=300,
-    )
-
-    gym.envs.register(
-        id='Orbit-v0',
-        entry_point='gym_space.envs.orbit:OrbitEnv',
         max_episode_steps=300,
     )
 
@@ -124,6 +115,7 @@ if __name__ == '__main__':
             2 * env.observation_space.shape[0], env.action_space.shape[0], False)
     args_to_tune = [] if args.tune is None else args.tune
     configs = []
+    
     for i, h_params in enumerate(product(*[product([param], config[param]) for param in args_to_tune])):
         c = copy.deepcopy(config)
         for param, value in h_params:

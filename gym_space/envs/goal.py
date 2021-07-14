@@ -17,8 +17,8 @@ class GoalEnv(SpaceshipEnv, ABC):
         self,
         n_planets: int = 3,
         survival_reward_scale: float = 0.5,
-        goal_dist_reward_scale: float = 0.4,
-        economy_reward_scale: float = 0.1,
+        goal_dist_reward_scale: float = 0.5,
+        economy_reward_scale: float = 0.0,
         goal_dist_reward_std: float = 0.1,
         test_env: bool = False,
         renderer_kwargs: dict = None,
@@ -126,7 +126,6 @@ class GoalEnv(SpaceshipEnv, ABC):
                     if np.linalg.norm(ship_pos - goal_pos) < 0.7 * (self.world_size - self.planets_radius):
                         positions = positions[:-2]
                         continue
-        print(n_total_tries)
         return positions
 
     def _reset(self):

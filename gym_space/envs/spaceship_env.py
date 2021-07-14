@@ -1,3 +1,4 @@
+from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 import gym
@@ -65,9 +66,9 @@ class SpaceshipEnv(gym.Env, ABC):
             self._renderer.reset(self.goal_pos)
         return self.observation
 
-    #define reward function
-    def reward(self, action, prev_state ):
-        pass
+    # define reward function
+    def reward(self, action, prev_state):
+        return self.rewards.reward(self.internal_state, action)
 
     def step(self, raw_action):
         assert self.action_space.contains(raw_action), raw_action

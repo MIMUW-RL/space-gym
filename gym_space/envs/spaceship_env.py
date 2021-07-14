@@ -1,189 +1,160 @@
+from __future__ import annotations
 from abc import ABC, abstractmethod
-
+from dataclasses import dataclass, field
 import gym
 from gym.spaces import Discrete, Box
 from gym_space.planet import Planet
-from gym_space.ship import Ship
-from gym_space.rewards import Rewards
-from gym_space.helpers import angle_to_unit_vector
-from typing import List
+from gym_space.ship_params import ShipParams
+from gym_space.helpers import angle_to_unit_vector, vector_to_angle
 import numpy as np
-from scipy.integrate import solve_ivp
-from functools import partial
+
+from gym_space.dynamic_model import ShipState
 
 
+@dataclass
 class SpaceshipEnv(gym.Env, ABC):
-    max_episode_steps: int = None
+    """Base class for all Spaceship environments and tasks
+
+    Args:
+        ship_params: parameters describing properties of the spaceship
+        planets: list of parameters describing properties of the planets
+        world_size: width and height of square 2D world
+        max_abs_vel_angle: maximal absolute value of angular velocity
+        step_size: number of seconds between consecutive observations
+        vel_xy_std: approximate standard deviation of translational velocities
+        with_lidar: include "lidars" for planets and goal (if present) in observations
+        with_goal: if goal (point in space) is present in the environment
+        renderer_kwargs: keyword args for Renderer
+    """
+
+    ship_params: ShipParams
+    planets: list[Planet]
+    world_size: float
+    max_abs_vel_angle: float
+    step_size: float
+    vel_xy_std: np.array
+    with_lidar: bool
+    with_goal: bool
+    renderer_kwargs: dict = None
+
+    observation: np.array = field(init=False, default=None)
+    last_action: np.array = field(init=False, default=None)
+    goal_pos: np.array = field(init=False, default=None)
+
     metadata = {
         "render.modes": ["human", "rgb_array"],
         "video.frames_per_second": 30,
     }
 
-    def __init__(
-        self,
-        *,
-        ship: Ship,
-        planets: List[Planet],
-        rewards: Rewards,
-        world_size: np.array,
-        step_size: float,
-        max_abs_angular_velocity: float,
-        velocity_xy_std: np.array,
-    ):
-        self.ship = ship
-        self.planets = planets
-        self.rewards = rewards
-        # TODO: use typing with runtime check
-        assert world_size.shape == (2,)
-        self.world_size = world_size
-        self.step_size = step_size
-        self.max_abs_angular_velocity = max_abs_angular_velocity
-        # TODO: use typing with runtime check
-        assert velocity_xy_std.shape == (2,)
-        self.velocity_xy_std = velocity_xy_std
-
-        self.observation_space = Box(
-            low=np.array(
-                [-1.0, -1.0, -1.0, -1.0, -np.inf, -np.inf, -1.0]
-            ),
-            high=np.array(
-                [1.0, 1.0, 1.0, 1.0, np.inf, np.inf, 1.0]
-            ),
-        )
+    def __post_init__(self):
+        if self.renderer_kwargs is None:
+            self.renderer_kwargs = dict()
+        self._init_observation_space()
         self._init_action_space()
-        self._boundary_events = None
-        self._init_boundary_events()
-        self._np_random = None
+        self._np_random = self._renderer = None
         self.seed()
-        self.internal_state = self.last_action = self.elapsed_steps = self._renderer = None
+        self._ship_state = ShipState(
+            self.ship_params, self.planets, self.world_size, self.max_abs_vel_angle
+        )
 
     def reset(self):
-        self.internal_state = self._sample_initial_state()
-        self.elapsed_steps = 0
-        return self.external_state
+        self._reset()
+        assert self._ship_state.is_defined
+        assert self.with_goal == (self.goal_pos is not None)
+        self._make_observation()
+        if self._renderer is not None:
+            self._renderer.reset(self.goal_pos)
+        return self.observation
 
-    #define reward function
-    def reward(self, action, prev_state ):
+    # define reward function
+    def reward(self, action, prev_state):
         return self.rewards.reward(self.internal_state, action)
 
     def step(self, raw_action):
-        assert (
-            self.elapsed_steps is not None
-        ), "Cannot call env.step() before calling reset()"
         assert self.action_space.contains(raw_action), raw_action
-        action = self._translate_raw_action(raw_action)
+        action = np.array(self._translate_raw_action(raw_action))
         self.last_action = action
-        prev_state = None
-        if(self.elapsed_steps > 0):
-            prev_state = self.external_state
-        done = self._update_state(action)
-        if(self.elapsed_steps == 0):
-            prev_state = self.external_state
-        self.elapsed_steps += 1
-        if self.elapsed_steps >= self.max_episode_steps:
-            done = True
-        reward = self.reward( action, prev_state )
-        return self.external_state, reward, done, {}
+
+        done = self._ship_state.step(action, self.step_size)
+        self._make_observation()
+        reward = self._reward()
+        return self.observation, reward, done, {}
 
     def render(self, mode="human"):
         if self._renderer is None:
             from gym_space.rendering import Renderer
 
-            self._renderer = Renderer(15, self.planets, self.world_size)
+            self._renderer = Renderer(
+                self.planets, self.world_size, self.goal_pos, **self.renderer_kwargs
+            )
 
-        return self._renderer.render(self.internal_state[:3], self.last_action, mode)
+        return self._renderer.render(self._ship_state.full_pos, self.last_action, mode)
 
     def seed(self, seed=None):
         self._np_random, seed = gym.utils.seeding.np_random(seed)
         return [seed]
 
-    def _init_boundary_events(self):
-        self._boundary_events = []
+    def _init_observation_space(self):
+        obs_high = [1.0, 1.0, 1.0, 1.0, np.inf, np.inf, 1.0]
+        if self.with_lidar:
+            # as normalized world is [-1, 1]^2, the highest distance between two points is 2 sqrt(2)
+            # (x, y) vector for each planet
+            obs_high += 2 * len(self.planets) * [2 * np.sqrt(2)]
+            if self.with_goal:
+                obs_high += 2 * [2 * np.sqrt(2)]
+        obs_high = np.array(obs_high)
+        self.observation_space = Box(low=-obs_high, high=obs_high)
 
-        def planet_event(planet: Planet, _t, state):
-            ship_xy_pos = state[:2]
-            return planet.distance(ship_xy_pos)
+    def _make_observation(self):
+        # make sure that x and y positions are between -1 and 1
+        obs_pos_xy = self._ship_state.pos_xy / self.world_size
+        # normalize translational velocity
+        obs_vel_xy = self._ship_state.vel_xy / self.vel_xy_std
+        # make sure that angular velocity is between -1 and 1
+        obs_vel_angle = self._ship_state.vel_angle / self.max_abs_vel_angle
+        # represent angle as cosine and sine
+        angle = self._ship_state.pos_angle
+        angle_repr = np.array([np.cos(angle), np.sin(angle)])
+        observation = [obs_pos_xy, angle_repr, obs_vel_xy, np.array([obs_vel_angle])]
 
-        for planet_ in self.planets:
-            event = partial(planet_event, planet_)
-            event.terminal = True
-            self._boundary_events.append(event)
+        if self.with_lidar:
+            observation += [
+                self._create_lidar_vector(p.center_pos, p.radius) for p in self.planets
+            ]
+            if self.with_goal:
+                observation += [self._create_lidar_vector(self.goal_pos)]
+        self.observation = np.concatenate(observation)
 
-        def world_max_event(_t, state):
-            return np.min(self.world_size / 2 - state[:2])
+    def _create_lidar_vector(
+        self, obj_pos: np.array, obj_radius: float = 0.0
+    ) -> np.array:
+        """Create vector from ship to some object.
 
-        world_max_event.terminal = True
-        self._boundary_events.append(world_max_event)
-
-        def world_min_event(_t, state):
-            return np.min(state[:2] - self.world_size / 2)
-
-        world_min_event.terminal = True
-        self._boundary_events.append(world_min_event)
-
-        def angular_velocity_event(_t, state):
-            return self.max_abs_angular_velocity - np.abs(state[5])
-
-        angular_velocity_event.terminal = True
-        self._boundary_events.append(angular_velocity_event)
-
-    def _external_force_and_torque(self, action: np.array, state: np.array):
-        engine_action, thruster_action = action
-        engine_force = engine_action * self.ship.max_engine_force
-        thruster_torque = thruster_action * self.ship.max_thruster_torque
-        angle = state[2]
-        engine_force_direction = -angle_to_unit_vector(angle)
-        force_xy = engine_force_direction * engine_force
-        return np.array([*force_xy, thruster_torque])
-
-    def _vector_field(self, action, _time, state: np.array):
-        external_force_and_torque = self._external_force_and_torque(action, state)
-
-        position, velocity = np.split(state, 2)
-        external_force_xy, external_torque = np.split(external_force_and_torque, [2])
-
-        force_xy = external_force_xy
-        for planet in self.planets:
-            force_xy += planet.gravity(position[:2], self.ship.mass)
-        acceleration_xy = force_xy / self.ship.mass
-
-        torque = external_torque
-        acceleration_angle = torque / self.ship.moi
-
-        acceleration = np.concatenate([acceleration_xy, acceleration_angle])
-        return np.concatenate([velocity, acceleration])
-
-    def _update_state(self, action):
-        ode_solution = solve_ivp(
-            partial(self._vector_field, action),
-            t_span=(0, self.step_size),
-            y0=self.internal_state,
-            events=self._boundary_events,
+        Lidar's point of view is ship's point of view.
+        It means that the returned vector is in coordinate system
+        such that ship's engine exhaust is pointing downwards.
+        """
+        ship_center_obj_vec = obj_pos - self._ship_state.pos_xy
+        ship_obj_angle = (
+            vector_to_angle(ship_center_obj_vec)
+            - np.pi / 2
+            - self._ship_state.pos_angle
         )
-        assert ode_solution.success, ode_solution.message
-        self.internal_state = ode_solution.y[:, -1]
-        self._wrap_angle()
-        done = ode_solution.status == 1
-        return done
-
-    def _wrap_angle(self):
-        self.internal_state[2] %= 2 * np.pi
+        ship_obj_angle %= 2 * np.pi
+        scale = (np.linalg.norm(ship_center_obj_vec) - obj_radius) * 2 / self.world_size
+        return angle_to_unit_vector(ship_obj_angle) * scale
 
     @property
-    def external_state(self):
-        external_state = self.internal_state.copy()
-        # make sure that x and y positions are between -1 and 1
-        external_state[:2] /= self.world_size
-        # normalize translational velocity
-        external_state[3:5] /= self.velocity_xy_std
-        # make sure that angular velocity is between -1 and 1
-        external_state[5] /= self.max_abs_angular_velocity
-        # represent angle as cosine and sine
-        angle = external_state[2]
-        angle_repr = np.array([np.cos(angle), np.sin(angle)])
-        external_state = np.concatenate([external_state[:2], angle_repr, external_state[3:]])
+    def planets_lidars(self):
+        if not self.with_lidar:
+            return None
+        return self.observation[-2 * len(self.planets) :].reshape(-1, 2)
 
-        return external_state
+    @property
+    def goal_lidar(self):
+        if not (self.with_lidar and self.with_goal):
+            return None
+        return self.observation[-2:]
 
     @property
     def viewer(self):
@@ -191,16 +162,22 @@ class SpaceshipEnv(gym.Env, ABC):
 
     @abstractmethod
     def _init_action_space(self):
+        # different for discrete and continuous environments
         pass
 
     @staticmethod
     @abstractmethod
-    def _translate_raw_action(raw_action):
+    def _translate_raw_action(raw_action) -> tuple[float, float]:
         # different for discrete and continuous environments
         pass
 
     @abstractmethod
-    def _sample_initial_state(self):
+    def _reset(self):
+        """Must call self._ship_state.set()"""
+        pass
+
+    @abstractmethod
+    def _reward(self) -> float:
         pass
 
 
@@ -211,10 +188,19 @@ class DiscreteSpaceshipEnv(SpaceshipEnv, ABC):
         self.action_space = Discrete(2 * 3)
 
     @staticmethod
-    def _translate_raw_action(raw_action: int):
-        engine_action = float(raw_action % 2)
-        thruster_action = float(raw_action // 2 - 1)
-        return np.array([engine_action, thruster_action])
+    def _translate_raw_action(raw_action: int) -> tuple[float, float]:
+        if raw_action == 0:
+            return 0.0, 0.0
+        elif raw_action == 1:
+            return 1.0, 0.0
+        elif raw_action == 2:
+            return 0.0, -1.0
+        elif raw_action == 3:
+            return 0.0, 1.0
+        elif raw_action <= 5:
+            return 1.0, (raw_action - 4.5) * 2
+        else:
+            raise ValueError
 
 
 class ContinuousSpaceshipEnv(SpaceshipEnv, ABC):
@@ -222,8 +208,7 @@ class ContinuousSpaceshipEnv(SpaceshipEnv, ABC):
         self.action_space = Box(low=-np.ones(2), high=np.ones(2))
 
     @staticmethod
-    def _translate_raw_action(raw_action: np.array):
+    def _translate_raw_action(raw_action: np.array) -> tuple[float, float]:
         engine_action, thruster_action = raw_action
         # [-1, 1] -> [0, 1]
-        engine_action = (engine_action + 1) / 2
-        return np.array([engine_action, thruster_action])
+        return (engine_action + 1) / 2, thruster_action

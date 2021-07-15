@@ -34,4 +34,5 @@ register(
 register(
     id="KeplerContinuous-v0",
     entry_point="gym_space.envs:KeplerContinuousEnv",
+    max_episode_steps=300,
 )

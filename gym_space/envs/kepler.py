@@ -11,16 +11,23 @@ class KeplerEnv(SpaceshipEnv, ABC):
     _planet_radius = 0.25
     _border_radius = 2.0
 
-    def _energy(self, pos_xy, vel_xy) -> float:
-        vel_xy_n = vel_xy / np.linalg.norm(vel_xy)
-        E = 0.5 * vel_xy_n * vel_xy_n / self.ship_params.mass - G * self.planets[
+    def _H(self, pos_xy, vel_xy) -> float:
+        """Hamiltonian """
+        E = 0.5 * (
+            vel_xy[0] * vel_xy[0] + vel_xy[1] * vel_xy[1]
+        ) / self.ship_params.mass - G * self.planets[
             0
-        ].mass * self.ship_params.mass / np.linalg.norm(pos_xy)
+        ].mass * self.ship_params.mass / np.linalg.norm(
+            pos_xy
+        )
         return E
+
+    def _L(self, pos_xy, vel_xy) -> float:
+        return pos_xy[0] * vel_xy[1] - pos_xy[1] * vel_xy[0]
 
     def _A(self, pos_xy, vel_xy) -> np.array:
         """ the Laplace-Runge-Lenz-vector (conservation law)"""
-        L = pos_xy[0] * vel_xy[1] - pos_xy[1] * vel_xy[0]
+        L = self._L(pos_xy, vel_xy)
         A = np.zeros((2,))
         pos_xy_n = pos_xy / np.linalg.norm(pos_xy)
         m = self.ship_params.mass
@@ -28,6 +35,11 @@ class KeplerEnv(SpaceshipEnv, ABC):
         A[0] = vel_xy[1] * L - m * G * m * M * pos_xy_n[0]
         A[1] = -vel_xy[0] * L - m * G * m * M * pos_xy_n[1]
         return A
+
+    def _orbit_vel(self, pos_xy):
+        alpha = G * (self.ship_params.mass + self.planets[0].mass)
+        r = np.linalg.norm(pos_xy)
+        return np.sqrt(alpha / r)
 
     def _sparse_reward(self, pos_xy, vel_xy, radius_ref, vel_ref) -> np.array:
         """ reward added if pos_xy and vel_xy is sufficiently close to the reference"""
@@ -37,14 +49,16 @@ class KeplerEnv(SpaceshipEnv, ABC):
         print(f"r={np.abs(pos_r - radius_ref)}")
         print(f"vel={np.abs(vel_xy[0] - vel_ref[0]) + np.abs(vel_xy[1] - vel_ref[1])}")
         if np.abs(pos_r - radius_ref) < self.sparse_r_thresh:
-            final_r += 1.0
+            final_r += self.rad_reward_value
         if (
             np.abs(vel_xy[0] - vel_ref[0]) + np.abs(vel_xy[1] - vel_ref[1])
             < self.sparse_vel_thresh
         ):
-            final_r += 1.0
+            final_r += self.vel_reward_value
+
+        max_step_reward = 2.0
         print(f"rew={final_r}")
-        return final_r
+        return final_r, max_step_reward
 
     def _sparse_scaled_reward(self, pos_r, vel_xy, radius_ref, vel_ref) -> np.array:
         """ reward added if pos_xy and vel_xy close to the reference and increased when closer"""
@@ -69,9 +83,8 @@ class KeplerEnv(SpaceshipEnv, ABC):
 
         Vt = Vt / np.linalg.norm(Vt)
         # assume that there is a single planet planets[0]
-        alpha = G * (self.ship_params.mass + self.planets[0].mass)
-        p = np.linalg.norm(pos_xy)
-        Vt = Vt * np.sqrt(alpha / p)
+
+        Vt = Vt * self._orbit_vel(pos_xy)
         return Vt
 
     def _reward(self) -> float:
@@ -80,20 +93,28 @@ class KeplerEnv(SpaceshipEnv, ABC):
         vel_ref = self._circle_orbit_reference_vel(pos_xy)
         # print(vel_xy)
         # print(f"A:{self._A(pos_xy, vel_xy)}")
+        print(f"L={self._L(pos_xy, vel_xy)}")
+        print(f"H={self._H(pos_xy, vel_xy)}")
+        print(f"A={self._A(pos_xy, vel_xy)}\n")
+        print(f"orbit_vel={self._orbit_vel(pos_xy)}")
+        print(f"vel_sc_prod={pos_xy.dot(vel_xy)}")
 
-        sparse_r = self._sparse_reward(
+        sparse_r, max_step_reward = self._sparse_reward(
             np.linalg.norm(pos_xy), vel_xy, self.ref_orbit_radius, vel_ref
         )
 
-        return self.reward_value + sparse_r
+        return (self.reward_value + sparse_r) / (self.reward_value + max_step_reward)
 
     def __init__(
         self,
+        test_env=False,
         ref_orbit_radius=1.5,
-        reward_value=1.0,
         ref_orbit_eccentricity=1.0,
         sparse_vel_thresh=0.1,
         sparse_r_thresh=0.1,
+        reward_value=1.0,
+        vel_reward_value=1.0,
+        rad_reward_value=1.0,
     ):
         planet = Planet(center_pos=np.zeros(2), mass=6e8, radius=self._planet_radius)
         # here we use planet outline as external border, i.e. we fly "inside planet"
@@ -113,12 +134,14 @@ class KeplerEnv(SpaceshipEnv, ABC):
             with_goal=False,
             renderer_kwargs={"num_prev_pos_vis": 50, "prev_pos_color_decay": 0.95},
         )
-
+        self.test_env = test_env
         self.ref_orbit_radius = ref_orbit_radius
         self.reward_value = reward_value
         self.ref_orbit_eccentricity = ref_orbit_eccentricity
         self.sparse_r_thresh = sparse_r_thresh
         self.sparse_vel_thresh = sparse_vel_thresh
+        self.vel_reward_value = vel_reward_value
+        self.rad_reward_value = rad_reward_value
 
     def _reset(self):
         planet_angle = self._np_random.uniform(0, 2 * np.pi)
@@ -127,7 +150,8 @@ class KeplerEnv(SpaceshipEnv, ABC):
         )
         pos_xy = angle_to_unit_vector(planet_angle) * ship_planet_center_distance
         ship_angle = self._np_random.uniform(0, 2 * np.pi)
-        velocities_xy = self._np_random.standard_normal(2) * 0.05
+        # velocities_xy = self._np_random.standard_normal(2) * 0.05
+        velocities_xy = self._circle_orbit_reference_vel(pos_xy)
 
         max_abs_ang_vel = 0.7 * self.max_abs_vel_angle
         angular_velocity = self._np_random.standard_normal() * max_abs_ang_vel / 5

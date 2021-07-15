@@ -18,7 +18,7 @@ def visualise_episode_vanilla(algo):
     done = False
     ep_ret = 0
     i = 0
-    while not i >= 500:
+    while not done:
         obs = algo.process_obs(obs)
         obs = algo.replay_buffer.normalize(obs)
         action, _ = algo._actor.act(obs, deterministic=True)
@@ -52,6 +52,7 @@ gym.envs.register(
 gym.envs.register(
     id="Kepler-v0",
     entry_point="gym_space.envs.kepler:KeplerContinuousEnv",
+    max_episode_steps=1000,
 )
 
 # model_path = "models/Jun30_13-12-28.489Orbit-v0-g0.99-spe5000-TD3-a_lr0.0003-rf0-noi0.2-obs_normFalse-pi_ufr2.pkl"
@@ -59,13 +60,12 @@ gym.envs.register(
 # model_path = "models/Jul05_22-42-01.624GoalContinuous2-v0-g0.99-spe5000-TD3-a_lr0.0003-rf0-noi0.2-obs_normFalse-pi_ufr2.pkl"
 # ENV_NAME = "GoalContinuous2-v0"
 
-model_path = "models/Jul13_21-48-42.079Kepler-v0-g0.99-spe5000-TD3-a_lr0.0003-rf0-noi0.2-obs_normFalse-pi_ufr2.pkl"
+model_path = "models/Jul14_17-55-30.246Kepler300-v0-g0.99-spe5000-TD3-a_lr0.0003-rf0-noi0.2-obs_normFalse-pi_ufr2_test.pkl"
 ENV_NAME = "Kepler-v0"
 
 td3 = TD3(
     env_name=ENV_NAME,
     obs_norm=False,
-    max_episode_steps=500,
 )
 
 td3.load(model_path)

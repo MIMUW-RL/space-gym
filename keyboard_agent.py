@@ -3,20 +3,24 @@ import time
 import gym
 import numpy as np
 
+gym.envs.register(
+    id="KeplerDiscrete-v0",
+    entry_point="gym_space.envs.kepler:KeplerDiscreteEnv",
+    max_episode_steps=1000,
+)
 
 if __name__ == "__main__":
-    #env = gym.make(f"gym_space:DoNotCrashDiscrete-v0")
+    # env = gym.make(f"gym_space:DoNotCrashDiscrete-v0")
     env = gym.make(f"gym_space:KeplerDiscrete-v0")
-    #env = gym.make(f"gym_space:GoalDiscrete-v0")
-    
-    #gym.envs.register(
+    # env = gym.make(f"gym_space:GoalDiscrete-v0")
+
+    # gym.envs.register(
     #    id='GoalDiscrete3-v0',
     #    entry_point='gym_space.envs.goal:GoalDiscreteEnv',
     #    kwargs = {'n_planets' : 3},
-    #)
+    # )
 
-    #env = gym.make(f"gym_space:GoalDiscrete3-v0")
-
+    # env = gym.make(f"gym_space:GoalDiscrete3-v0")
 
     if not hasattr(env.action_space, "n"):
         raise Exception("Keyboard agent only supports discrete action spaces")

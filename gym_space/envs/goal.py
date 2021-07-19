@@ -5,7 +5,11 @@ from scipy.stats import multivariate_normal
 from gym_space.planet import Planet
 from gym_space.ship_params import ShipParams
 from gym_space.sample_positions import maximize_dist
+from gym_space import helpers
 from .spaceship_env import SpaceshipEnv, DiscreteSpaceshipEnv, ContinuousSpaceshipEnv
+
+
+AREA_RATIO = 0.3
 
 
 class GoalEnv(SpaceshipEnv, ABC):
@@ -14,7 +18,7 @@ class GoalEnv(SpaceshipEnv, ABC):
 
     def __init__(
         self,
-        n_planets: int = 2,
+        n_planets: int = 1,
         survival_reward_scale: float = 0.5,
         goal_dist_reward_scale: float = 0.5,
         economy_reward_scale: float = 0.0,
@@ -24,11 +28,20 @@ class GoalEnv(SpaceshipEnv, ABC):
     ):
         self.n_planets = n_planets
         world_size = 3.0
-        n_objects = n_planets + 2
-        n_objects_per_dim = np.ceil(np.sqrt(n_objects))
-        self.planets_radius = 0.5 * world_size / n_objects_per_dim
-        planets_mass = self._total_planets_mass / n_planets
+        self.goal_radius = 0.2
+        self.ship_radius = 0.2
+        if n_planets == 1:
+            self.planets_radius = 0.8
+        elif n_planets == 2:
+            self.planets_radius = 0.4
+        else:
+            # 4 (goal_r^2 + ship_r^2 + n planets_r^2) = AREA_RATIO * world_size^2
+            # 4 n planets_r^2 = AREA_RATIO * world_size^2 - 4 (goal_r^2 + ship_r^2)
+            # planets_r^2 = [ AREA_RATIO * world_size^2 - 4 (goal_r^2 + ship_r^2) ] / 4n
+            # planets_r^2 = [ AREA_RATIO * world_size^2 / 4 - goal_r^2 - ship_r^2 ] / n
+            self.planets_radius = np.sqrt((AREA_RATIO * world_size**2 / 4 - self.goal_radius**2 - self.ship_radius**2) / n_planets)
 
+        planets_mass = self._total_planets_mass / n_planets
         planets = [
             Planet(mass=planets_mass, radius=self.planets_radius)
             for _ in range(self.n_planets)
@@ -52,7 +65,9 @@ class GoalEnv(SpaceshipEnv, ABC):
         self.goal_dist_reward_std = goal_dist_reward_std
 
         self.test_env = test_env
-        self._normal_pdf = multivariate_normal(mean=np.zeros(2), cov=np.eye(2) * self.goal_dist_reward_std).pdf
+        self._normal_pdf = multivariate_normal(
+            mean=np.zeros(2), cov=np.eye(2) * self.goal_dist_reward_std
+        ).pdf
         self._max_normal_pdf = self._normal_pdf(np.zeros(2))
 
         super().__init__(
@@ -69,11 +84,51 @@ class GoalEnv(SpaceshipEnv, ABC):
 
     def _sample_positions(self):
         max_pos = self.world_size / 2 - self.planets_radius
-        initial_pos = self._np_random.uniform(-max_pos, max_pos, size=(self.n_planets + 2, 2))
-        return maximize_dist(initial_pos, max_pos)
+        if self.n_planets > 1:
+            initial_pos = self._np_random.uniform(
+                -max_pos, max_pos, size=(self.n_planets + 2, 2)
+            )
+            radii = [self.ship_radius, self.goal_radius, self.planets_radius]
+            return maximize_dist(initial_pos, max_pos, radii)
+        max_ship_pos = self.world_size / 2 - self.ship_radius
+        max_goal_pos = self.world_size / 2 - self.goal_radius
+
+        planet_world_center_dist = self._np_random.uniform(0, max_pos - 2 * max(self.ship_radius, self.goal_radius))
+        planet_world_center_angle = self._np_random.uniform(0, 2 * np.pi)
+        planet_pos = helpers.angle_to_unit_vector(planet_world_center_angle) * planet_world_center_dist
+        ship_planet_angle = self._np_random.uniform(0, 2 * np.pi)
+        goal_planet_angle = (ship_planet_angle - np.pi + 2 * self._np_random.normal()) % (2 * np.pi)
+        ship_planet_unit_vec = helpers.angle_to_unit_vector(ship_planet_angle)
+        goal_planet_unit_vec = helpers.angle_to_unit_vector(goal_planet_angle)
+
+        def get_max_dist_in_direction(max_pos_, obj_pos, direction_unit_vec):
+            candidate_max_dist = (
+                (max_pos_ - obj_pos[0]) / direction_unit_vec[0],
+                (- max_pos_ - obj_pos[0]) / direction_unit_vec[0],
+                (max_pos_ - obj_pos[1]) / direction_unit_vec[1],
+                (- max_pos_ - obj_pos[1]) / direction_unit_vec[1],
+            )
+            candidate_max_dist = filter(lambda x: x > 0, candidate_max_dist)
+            return min(candidate_max_dist)
+
+        ship_planet_center_max_dist = get_max_dist_in_direction(max_ship_pos, planet_pos, ship_planet_unit_vec)
+        ship_planet_center_min_dist = self.planets_radius + self.ship_radius
+        assert ship_planet_center_min_dist < ship_planet_center_max_dist
+        ship_planet_center_dist = self._np_random.uniform(ship_planet_center_min_dist, ship_planet_center_max_dist)
+        # ship_planet_center_dist = ship_planet_center_max_dist
+        ship_pos = planet_pos + ship_planet_unit_vec * ship_planet_center_dist
+
+        goal_planet_center_max_dist = get_max_dist_in_direction(max_goal_pos, planet_pos, goal_planet_unit_vec)
+        goal_planet_center_min_dist = self.planets_radius + self.goal_radius
+        assert goal_planet_center_min_dist < goal_planet_center_max_dist
+        goal_planet_center_dist = self._np_random.uniform(goal_planet_center_min_dist, goal_planet_center_max_dist)
+        # goal_planet_center_dist = goal_planet_center_max_dist
+        goal_pos = planet_pos + goal_planet_unit_vec * goal_planet_center_dist
+
+        return ship_pos, goal_pos, planet_pos
 
     def _reset(self):
-        *planets_pos, ship_pos, self.goal_pos = self._sample_positions()
+        ship_pos, self.goal_pos, *planets_pos = self._sample_positions()
         for pos, planet in zip(planets_pos, self.planets):
             planet.center_pos = pos
         ship_angle = self._np_random.uniform(0, 2 * np.pi)
@@ -93,7 +148,10 @@ class GoalEnv(SpaceshipEnv, ABC):
         return reward
 
     def _goal_dist_reward(self) -> float:
-        r = self._normal_pdf(self._ship_state.pos_xy - self.goal_pos) / self._max_normal_pdf
+        r = (
+            self._normal_pdf(self._ship_state.pos_xy - self.goal_pos)
+            / self._max_normal_pdf
+        )
         assert 0.0 <= r <= 1
         return r
 
@@ -105,6 +163,7 @@ class GoalEnv(SpaceshipEnv, ABC):
         r = 1 - normalized_action_norm
         assert 0 <= r <= 1
         return r
+
 
 class GoalDiscreteEnv(GoalEnv, DiscreteSpaceshipEnv):
     pass

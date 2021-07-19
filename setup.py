@@ -2,7 +2,7 @@ from pathlib import Path
 from setuptools import setup, find_packages
 
 with open("requirements.txt") as f:
-    requirements =  [line.rstrip() for line in f]
+    requirements = [line.rstrip() for line in f]
 
 long_description = Path("README.md").read_text()
 
@@ -10,7 +10,7 @@ setup(
     name="gym_space",
     version="0.1",
     author="Kajetan Janiak",
-    author_email='kajetan.janiak@gmail.com',
+    author_email="kajetan.janiak@gmail.com",
     description="RL environments with locomotion tasks in space",
     long_description=long_description,
     long_description_content_type="text/markdown",

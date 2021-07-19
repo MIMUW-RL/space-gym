@@ -99,6 +99,7 @@ if __name__ == "__main__":
 
     sparse_vel_thresh = 0.1
     sparse_r_thresh = 0.1
+    reward_value = 0
 
     max_episode_steps = 100
     gym.envs.register(
@@ -108,6 +109,7 @@ if __name__ == "__main__":
         kwargs={
             "sparse_vel_thresh": sparse_vel_thresh,
             "sparse_r_thresh": sparse_r_thresh,
+            "reward_value": reward_value,
         },
     )
 
@@ -119,6 +121,7 @@ if __name__ == "__main__":
         kwargs={
             "sparse_vel_thresh": sparse_vel_thresh,
             "sparse_r_thresh": sparse_r_thresh,
+            "reward_value": reward_value,
         },
     )
 
@@ -130,6 +133,19 @@ if __name__ == "__main__":
         kwargs={
             "sparse_vel_thresh": sparse_vel_thresh,
             "sparse_r_thresh": sparse_r_thresh,
+            "reward_value": reward_value,
+        },
+    )
+
+    max_episode_steps = 500
+    gym.envs.register(
+        id=f"Kepler{max_episode_steps}-v0",
+        entry_point="gym_space.envs.kepler:KeplerContinuousEnv",
+        max_episode_steps=max_episode_steps,
+        kwargs={
+            "sparse_vel_thresh": sparse_vel_thresh,
+            "sparse_r_thresh": sparse_r_thresh,
+            "reward_value": reward_value,
         },
     )
 
@@ -141,6 +157,7 @@ if __name__ == "__main__":
         kwargs={
             "sparse_vel_thresh": sparse_vel_thresh,
             "sparse_r_thresh": sparse_r_thresh,
+            "reward_value": reward_value,
         },
     )
 
@@ -153,6 +170,7 @@ if __name__ == "__main__":
         kwargs={
             "sparse_vel_thresh": sparse_vel_thresh,
             "sparse_r_thresh": sparse_r_thresh,
+            "reward_value": reward_value,
         },
     )
 
@@ -192,7 +210,7 @@ if __name__ == "__main__":
                 i,
             )
             c["log_dir"] = c["tensorboard_dir"] + "/logdir/"
-            c["tensorboard_comment"] = f"env_vt{sparse_vel_thresh}_rt{sparse_r_thresh}"
+            c["tensorboard_comment"] = f"C{0.01}"
             configs.append(c)
     if len(configs) == 1:
         train(configs[0], args)

@@ -58,7 +58,7 @@ class KeplerEnv(SpaceshipEnv, ABC):
         return final_r, max_step_reward
 
     def _dense_reward(self, pos_xy, vel_xy, radius_ref, vel_ref) -> np.array:
-        """ reward increasing with decreasing distance to reference values"""
+        """ reward increasing with decreasing distance to reference values"""        
         C = 0.01
         pos_r = np.linalg.norm(pos_xy)
         orbit_vel = self._orbit_vel(pos_xy)
@@ -100,6 +100,45 @@ class KeplerEnv(SpaceshipEnv, ABC):
         # print(f"p3_reward={C / (orbit_vel_penalty + C)}")
         return reward
 
+    def _dense_reward3(self, pos_xy, vel_xy, radius_ref, vel_ref) -> np.array:
+        """reward increasing with decreasing distance to reference values ,
+        does not work well"""
+        C = 0.01
+        pos_r = np.linalg.norm(pos_xy)
+        orbit_vel = self._orbit_vel(pos_xy)
+        rad_penalty = np.abs(pos_r - radius_ref)
+        vel_dir_penalty = np.abs(pos_xy.dot(vel_xy))
+        orbit_vel_penalty = np.abs(orbit_vel - np.linalg.norm(vel_xy))
+
+        reward = C / (rad_penalty * vel_dir_penalty * orbit_vel_penalty + C)
+        self.rad_penalty = rad_penalty
+        self.vel_dir_penalty = vel_dir_penalty
+        self.orbit_vel_penalty = orbit_vel_penalty
+        # print(f"d_reward={reward}")
+        # print(f"p1_reward={C / (rad_penalty + C)}")
+        # print(f"p2_reward={C / (vel_dir_penalty + C)}")
+        # print(f"p3_reward={C / (orbit_vel_penalty + C)}")
+        return reward
+
+    def _dense_reward4(self, pos_xy, vel_xy, radius_ref, vel_ref) -> np.array:
+        """ reward increasing with decreasing distance to reference values"""        
+        C = 0.01
+        pos_r = np.linalg.norm(pos_xy)
+        orbit_vel = self._orbit_vel(pos_xy)
+        rad_penalty = np.abs(pos_r - radius_ref)
+        vel_dir_penalty = np.abs(pos_xy.dot(vel_xy))
+        orbit_vel_penalty = np.abs(orbit_vel - np.linalg.norm(vel_xy))
+
+        reward = C / (rad_penalty + vel_dir_penalty + orbit_vel_penalty + C)**2
+        self.rad_penalty = rad_penalty
+        self.vel_dir_penalty = vel_dir_penalty
+        self.orbit_vel_penalty = orbit_vel_penalty
+        # print(f"d_reward={reward}")
+        # print(f"p1_reward={C / (rad_penalty + C)}")
+        # print(f"p2_reward={C / (vel_dir_penalty + C)}")
+        # print(f"p3_reward={C / (orbit_vel_penalty + C)}")
+        return reward
+
     def _circle_orbit_reference_vel(self, pos_xy, radius=None) -> np.array:
         """for given (x,y) ship position compute the reference
         tangential component of the velocity, such that ship
@@ -128,8 +167,8 @@ class KeplerEnv(SpaceshipEnv, ABC):
         #    f"orbit_vel={self._orbit_vel(pos_xy)}, diff={np.abs(self._orbit_vel(pos_xy) - np.linalg.norm(vel_xy))}"
         # )
         # print(f"vel_sc_prod={pos_xy.dot(vel_xy)}")
-
-        dense_r = self._dense_reward2(pos_xy, vel_xy, self.ref_orbit_radius, vel_ref)
+        
+        dense_r = self._dense_reward4(pos_xy, vel_xy, self.ref_orbit_radius, vel_ref)
 
         # return (self.reward_value + sparse_r) / (self.reward_value + max_step_reward)
         return dense_r

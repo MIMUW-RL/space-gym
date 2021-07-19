@@ -175,7 +175,7 @@ if __name__ == "__main__":
     )
 
     config["env_name"] = args.env + "-v0"
-    config["test_env_name"] = args.test_env + "-v0"
+    #config["test_env_name"] = args.test_env + "-v0"
 
     algorithm = get_algorithm(args.algorithm, args.spp)
     kwargs_list = []
@@ -210,7 +210,7 @@ if __name__ == "__main__":
                 i,
             )
             c["log_dir"] = c["tensorboard_dir"] + "/logdir/"
-            c["tensorboard_comment"] = f"C{0.01}"
+            c["tensorboard_comment"] = f"dense_reward4"
             configs.append(c)
     if len(configs) == 1:
         train(configs[0], args)

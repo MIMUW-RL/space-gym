@@ -17,6 +17,9 @@ class GoalEnv(SpaceshipEnv, ABC):
     def __init__(
         self,
         n_planets: int = 1,
+        survival_reward_scale: float = 0.25,
+        goal_vel_reward_scale: float = 0.75,
+        goal_sparse_reward: float = 10.0,
         renderer_kwargs: dict = None,
     ):
         self.n_planets = n_planets
@@ -42,6 +45,10 @@ class GoalEnv(SpaceshipEnv, ABC):
         ship = ShipParams(
             mass=1, moi=0.05, max_engine_force=0.3, max_thruster_force=0.05
         )
+
+        self.survival_reward_scale = survival_reward_scale
+        self.goal_vel_reward_scale = goal_vel_reward_scale
+        self.goal_sparse_reward = goal_sparse_reward
 
         super().__init__(
             ship_params=ship,
@@ -96,9 +103,9 @@ class GoalEnv(SpaceshipEnv, ABC):
         self._ship_state.set(ship_pos, ship_angle, velocities_xy, angular_velocity)
 
     def _reward(self) -> float:
-        reward = self._goal_vel_reward()
+        reward = self.survival_reward_scale + self.goal_vel_reward_scale * self._goal_vel_reward()
         if np.linalg.norm(self.goal_pos - self._ship_state.pos_xy) < 0.3:
-            reward += 10
+            reward += self.goal_sparse_reward
             self._resample_goal()
         return reward
 
@@ -110,9 +117,11 @@ class GoalEnv(SpaceshipEnv, ABC):
         ship_goal_unit_vec = ship_goal_vec / ship_goal_vec_norm
         # project velocity vector onto line from ship to goal
         vel_toward_goal = ship_goal_unit_vec @ self._ship_state.vel_xy
+        # no negative reward that could encourage crashing
         if vel_toward_goal < 0:
             return 0.0
-        r = np.tanh(vel_toward_goal)
+        # don't encourage very high velocities
+        r = np.tanh(3 * vel_toward_goal)
         assert 0.0 <= r <= 1
         return r
 

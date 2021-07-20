@@ -27,3 +27,14 @@ def gravity(
     force_direction = pos_diff / center_distance
     scalar_force = G * from_mass * toward_mass / center_distance ** 2
     return force_direction * scalar_force
+
+
+def get_max_dist_in_direction(max_pos_, obj_pos, direction_unit_vec):
+    candidate_max_dist = (
+        (max_pos_ - obj_pos[0]) / direction_unit_vec[0],
+        (- max_pos_ - obj_pos[0]) / direction_unit_vec[0],
+        (max_pos_ - obj_pos[1]) / direction_unit_vec[1],
+        (- max_pos_ - obj_pos[1]) / direction_unit_vec[1],
+    )
+    candidate_max_dist = filter(lambda x: x > 0, candidate_max_dist)
+    return min(candidate_max_dist)

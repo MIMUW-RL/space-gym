@@ -42,7 +42,7 @@ class Renderer:
 
     def reset(self, goal_pos: np.array = None):
         self._move_planets()
-        self._move_goal(goal_pos)
+        self.move_goal(goal_pos)
         self.prev_ship_pos.clear()
 
     def render(self, ship_world_position: np.array, action: np.array, mode: str):
@@ -145,7 +145,7 @@ class Renderer:
         for planet, transform in zip(self.planets, self._planets_transforms):
             transform.set_translation(*self._world_to_screen(planet.center_pos))
 
-    def _move_goal(self, goal_pos: Union[np.array, None]):
+    def move_goal(self, goal_pos: Union[np.array, None]):
         assert (goal_pos is None) == (self.goal_pos is None)
         self.goal_pos = goal_pos
         if self.goal_pos is not None:

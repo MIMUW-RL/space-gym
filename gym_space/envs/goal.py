@@ -100,7 +100,6 @@ class GoalEnv(SpaceshipEnv, ABC):
         if np.linalg.norm(self.goal_pos - self._ship_state.pos_xy) < 0.3:
             reward += 10
             self._resample_goal()
-        print(reward)
         return reward
 
     def _goal_vel_reward(self) -> float:

@@ -6,9 +6,9 @@ from gym_space.ship_params import ShipParams
 from gym_space import helpers
 from .spaceship_env import SpaceshipEnv, DiscreteSpaceshipEnv, ContinuousSpaceshipEnv
 
-
-AREA_RATIO = 0.3
-
+WORLD_SIZE = 3.0
+MAX_OBJ_TILES_RATIO = 0.6
+PLANET_TILE_RATIO = 0.8  # TODO: dynamic
 
 class GoalEnv(SpaceshipEnv, ABC):
     _total_planets_mass = 1e9
@@ -16,26 +16,35 @@ class GoalEnv(SpaceshipEnv, ABC):
 
     def __init__(
         self,
-        n_planets: int = 1,
+        n_planets: int = 2,
         survival_reward_scale: float = 0.25,
         goal_vel_reward_scale: float = 0.75,
         goal_sparse_reward: float = 10.0,
         renderer_kwargs: dict = None,
     ):
         self.n_planets = n_planets
-        world_size = 3.0
-        self.goal_radius = 0.2
-        self.ship_radius = 0.2
-        if n_planets == 1:
+        if self.n_planets == 1:
             self.planets_radius = 0.8
-        elif n_planets == 2:
-            self.planets_radius = 0.4
+            self.goal_radius = 0.2
+            self.ship_radius = 0.2
         else:
-            # 4 (goal_r^2 + ship_r^2 + n planets_r^2) = AREA_RATIO * world_size^2
-            # 4 n planets_r^2 = AREA_RATIO * world_size^2 - 4 (goal_r^2 + ship_r^2)
-            # planets_r^2 = [ AREA_RATIO * world_size^2 - 4 (goal_r^2 + ship_r^2) ] / 4n
-            # planets_r^2 = [ AREA_RATIO * world_size^2 / 4 - goal_r^2 - ship_r^2 ] / n
-            self.planets_radius = np.sqrt((AREA_RATIO * world_size**2 / 4 - self.goal_radius**2 - self.ship_radius**2) / n_planets)
+            n_objects = self.n_planets + 2
+            min_tiles = int(np.ceil(n_objects / MAX_OBJ_TILES_RATIO))
+            r_ = (
+                (np.sqrt(1 + 8 * (3 + np.sqrt(3)) * min_tiles) - 1) /
+                (4 *  np.sqrt(3))
+            )
+            r = int(np.ceil(r_))
+            while True:
+                c = int(np.floor((2 / (np.sqrt(3) + 1)) *  (r * np.sqrt(3) + 0.5)))
+                if r * c >= min_tiles:
+                    break
+                r += 1
+            a = WORLD_SIZE / (0.5 * np.sqrt(3) + r * np.sqrt(3))
+            self._hex_rows = r
+            self._hex_cols = c
+            self._hex_a = a
+            self.planets_radius = 0.5 * a * np.sqrt(3) * PLANET_TILE_RATIO
 
         planets_mass = self._total_planets_mass / n_planets
         planets = [
@@ -53,7 +62,7 @@ class GoalEnv(SpaceshipEnv, ABC):
         super().__init__(
             ship_params=ship,
             planets=planets,
-            world_size=world_size,
+            world_size=WORLD_SIZE,
             step_size=0.07,
             max_abs_vel_angle=5.0,
             vel_xy_std=np.ones(2),
@@ -75,7 +84,7 @@ class GoalEnv(SpaceshipEnv, ABC):
     def _sample_positions(self):
         max_pos = self.world_size / 2 - self.planets_radius
         if self.n_planets > 1:
-            raise ValueError
+            raise NotImplementedError
 
         planet_world_center_dist = self._np_random.uniform(0, max_pos - 2 * max(self.ship_radius, self.goal_radius))
         planet_world_center_angle = self._np_random.uniform(0, 2 * np.pi)
@@ -87,7 +96,10 @@ class GoalEnv(SpaceshipEnv, ABC):
         return ship_pos, goal_pos, planet_pos
 
     def _resample_goal(self):
-        self.goal_pos = self._sample_position_outside_planet(self.planets[0].center_pos, self.goal_radius)
+        if self.n_planets == 1:
+            self.goal_pos = self._sample_position_outside_planet(self.planets[0].center_pos, self.goal_radius)
+        else:
+            raise NotImplementedError
         if self._renderer is not None:
             self._renderer.move_goal(self.goal_pos)
 

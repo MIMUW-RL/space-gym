@@ -7,8 +7,8 @@ from gym_space import helpers
 from .spaceship_env import SpaceshipEnv, DiscreteSpaceshipEnv, ContinuousSpaceshipEnv
 
 WORLD_SIZE = 3.0
-MAX_OBJ_TILES_RATIO = 0.6
-PLANET_TILE_RATIO = 0.8  # TODO: dynamic
+MAX_OBJ_TILES_RATIO = 0.7
+PLANET_TILE_RATIO = 0.75  # TODO: dynamic
 
 class GoalEnv(SpaceshipEnv, ABC):
     _total_planets_mass = 1e9
@@ -23,28 +23,36 @@ class GoalEnv(SpaceshipEnv, ABC):
         renderer_kwargs: dict = None,
     ):
         self.n_planets = n_planets
+        self.n_objects = self.n_planets + 2
         if self.n_planets == 1:
             self.planets_radius = 0.8
             self.goal_radius = 0.2
             self.ship_radius = 0.2
+            self._hex_rows = self._hex_cols = self._hex_a = None
+            self._hex_tiles = self._hex_tiling_width = self._hex_max_radius = None
         else:
-            n_objects = self.n_planets + 2
-            min_tiles = int(np.ceil(n_objects / MAX_OBJ_TILES_RATIO))
+            # minimum number of tiles
+            m = int(np.ceil(self.n_objects / MAX_OBJ_TILES_RATIO))
             r_ = (
-                (np.sqrt(1 + 8 * (3 + np.sqrt(3)) * min_tiles) - 1) /
-                (4 *  np.sqrt(3))
+                np.sqrt(72*np.sqrt(3)*m - 6*np.sqrt(3) + 12)/12 -
+                1/4 + np.sqrt(3)/12
             )
             r = int(np.ceil(r_))
             while True:
-                c = int(np.floor((2 / (np.sqrt(3) + 1)) *  (r * np.sqrt(3) + 0.5)))
-                if r * c >= min_tiles:
+                c = int(np.floor(2*np.sqrt(3)*r/3 - 1/3 + np.sqrt(3)/3))
+                if r * c >= m:
                     break
                 r += 1
-            a = WORLD_SIZE / (0.5 * np.sqrt(3) + r * np.sqrt(3))
+            s = WORLD_SIZE
+            a = 2*np.sqrt(3)*s/(3*(2*r + 1))
             self._hex_rows = r
             self._hex_cols = c
+            self._hex_tiles = r * c
             self._hex_a = a
-            self.planets_radius = 0.5 * a * np.sqrt(3) * PLANET_TILE_RATIO
+            self._hex_tiling_width = 3*a*(c - 1)/2 + 2*a
+            self._hex_max_radius = 0.5 * a * np.sqrt(3)
+            self.planets_radius = self._hex_max_radius * PLANET_TILE_RATIO
+            self.goal_radius = self.ship_radius = self.planets_radius / 2
 
         planets_mass = self._total_planets_mass / n_planets
         planets = [
@@ -82,18 +90,45 @@ class GoalEnv(SpaceshipEnv, ABC):
         return planet_pos + obj_planet_unit_vec * obj_planet_center_dist
 
     def _sample_positions(self):
-        max_pos = self.world_size / 2 - self.planets_radius
-        if self.n_planets > 1:
-            raise NotImplementedError
+        if self.n_planets == 1:
+            max_pos = self.world_size / 2 - self.planets_radius
+            planet_world_center_dist = self._np_random.uniform(0, max_pos - 2 * max(self.ship_radius, self.goal_radius))
+            planet_world_center_angle = self._np_random.uniform(0, 2 * np.pi)
+            planet_pos = helpers.angle_to_unit_vector(planet_world_center_angle) * planet_world_center_dist
 
-        planet_world_center_dist = self._np_random.uniform(0, max_pos - 2 * max(self.ship_radius, self.goal_radius))
-        planet_world_center_angle = self._np_random.uniform(0, 2 * np.pi)
-        planet_pos = helpers.angle_to_unit_vector(planet_world_center_angle) * planet_world_center_dist
+            ship_pos = self._sample_position_outside_planet(planet_pos, self.ship_radius)
+            goal_pos = self._sample_position_outside_planet(planet_pos, self.goal_radius)
 
-        ship_pos = self._sample_position_outside_planet(planet_pos, self.ship_radius)
-        goal_pos = self._sample_position_outside_planet(planet_pos, self.goal_radius)
+            return ship_pos, goal_pos, planet_pos
+        else:
+            # for now assume row starts with top hexagon
+            # X X X
+            #  X X X ...
+            tile_nrs = self._np_random.choice(self._hex_tiles, size=self.n_objects, replace=False)
+            row_nrs = tile_nrs // self._hex_cols
+            col_nrs = tile_nrs % self._hex_cols
+            x_shifts = col_nrs * 1.5 * self._hex_a
+            y_shifts = - row_nrs * self._hex_a * np.sqrt(3) - (col_nrs % 2) * 0.5 * self._hex_a * np.sqrt(3)
+            tile_zero_pos_x = - self.world_size / 2 + 0.5 * self._hex_a * np.sqrt(3)
+            tile_zero_pos_x += self._np_random.uniform(0, self.world_size - self._hex_tiling_width)
+            tile_zero_pos_y = self.world_size / 2 - 0.5 * self._hex_a * np.sqrt(3)
+            positions = np.stack([tile_zero_pos_x + x_shifts, tile_zero_pos_y + y_shifts], axis=-1)
 
-        return ship_pos, goal_pos, planet_pos
+            objects_shift_angles = self._np_random.uniform(0, 2 * np.pi, size=self.n_objects)
+            objects_shift_unit_vectors = helpers.angle_to_unit_vector(objects_shift_angles)
+
+            # objects_shift_magnitudes = self._np_random.uniform(size=self.n_objects)
+            objects_shift_magnitudes = np.ones(self.n_objects)
+            objects_shift_magnitudes[0] *= self._hex_max_radius - self.ship_radius
+            objects_shift_magnitudes[1] *= self._hex_max_radius - self.goal_radius
+            objects_shift_magnitudes[2:] *= self._hex_max_radius - self.planets_radius
+
+            positions += objects_shift_unit_vectors * objects_shift_magnitudes[:, np.newaxis]
+
+            if self._np_random.uniform() < 0.5:
+                return positions[:, ::-1]
+            return positions
+
 
     def _resample_goal(self):
         if self.n_planets == 1:

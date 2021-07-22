@@ -1,8 +1,8 @@
 import numpy as np
+from typing import Union
 
-
-def angle_to_unit_vector(angle: float) -> np.array:
-    return np.array([np.cos(angle), np.sin(angle)])
+def angle_to_unit_vector(angle: Union[float, np.ndarray]) -> np.array:
+    return np.stack([np.cos(angle), np.sin(angle)], axis=-1)
 
 
 def vector_to_angle(vector: np.array) -> float:

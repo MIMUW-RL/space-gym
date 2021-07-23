@@ -210,7 +210,7 @@ if __name__ == "__main__":
                 i,
             )
             c["log_dir"] = c["tensorboard_dir"] + "/logdir/"
-            c["tensorboard_comment"] = f"dense_reward4"
+            c["tensorboard_comment"] = f"dense_reward5_actpenalty"
             configs.append(c)
     if len(configs) == 1:
         train(configs[0], args)

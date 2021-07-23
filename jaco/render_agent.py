@@ -81,7 +81,7 @@ gym.envs.register(
 # ENV_NAME = "GoalContinuous2-v0"
 
 # model_path = "models/Jul15_18-21-47.854Kepler500-v0-g0.99-spe5000-TD3-a_lr0.0003-rf0-noi0.2-obs_normFalse-pi_ufr2_env_vt0.1_rt0.1.pkl"
-model_path = "models/Jul15_18-21-47.854Kepler500-v0-g0.99-spe5000-TD3-a_lr0.0003-rf0-noi0.2-obs_normFalse-pi_ufr2_env_vt0.1_rt0.1(1).pkl"
+model_path = "models/Jul19_14-45-25.034Kepler500-v0-g0.99-spe5000-TD3-a_lr0.0003-rf0-noi0.2-obs_normFalse-pi_ufr2_dense_reward4.pkl"
 ENV_NAME = "Kepler-v0"
 
 td3 = TD3(

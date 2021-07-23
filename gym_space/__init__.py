@@ -20,7 +20,7 @@ register(
 register(
     id="GoalDiscrete-v0",
     entry_point="gym_space.envs:GoalDiscreteEnv",
-    max_episode_steps=5,
+    max_episode_steps=10000,
 )
 
 register(

@@ -14,8 +14,9 @@ import numpy as np
 
 def visualise_episode_vanilla(algo):
     rad_penalties = []
-    vel_dir_penalties = []
-    orbit_vel_penalties = []
+    vel_x_penalties = []
+    vel_y_penalties = []
+    act_penalties = []
 
     obs = algo.env.reset()
     algo.env.render()
@@ -29,25 +30,34 @@ def visualise_episode_vanilla(algo):
         action = algo.process_action(action, obs)
         obs, r, done, _ = algo.env.step(action)
         rad_penalties.append(algo.env.rad_penalty)
-        vel_dir_penalties.append(algo.env.vel_dir_penalty)
-        orbit_vel_penalties.append(algo.env.orbit_vel_penalty)
+        vel_x_penalties.append(algo.env.vel_x_penalty)
+        vel_y_penalties.append(algo.env.vel_y_penalty)
+        act_penalties.append(algo.env.act_penalty)
+        print(f"rad_penalty={algo.env.rad_penalty}")
+        print(f"vel_x_penalty={algo.env.vel_x_penalty}")
+        print(f"vel_y_penalty={algo.env.vel_y_penalty}")
+        print(f"act_penalty={algo.env.act_penalty}")
+
         frame = algo.env.render(mode="rgb_array")
         # plt.imsave(f"gifs/{i:05d}.png", frame)
         ep_ret += r
         i += 1
     print(f"ep_ret={ep_ret}")
     rad_penalties = np.array(rad_penalties)
-    vel_dir_penalties = np.array(vel_dir_penalties)
-    orbit_vel_penalties = np.array(orbit_vel_penalties)
+    vel_x_penalties = np.array(vel_x_penalties)
+    vel_y_penalties = np.array(vel_y_penalties)
 
     print(
-        f"rad_penalties, mean={np.mean(rad_penalties)}, std={np.std(rad_penalties)}, min={np.min(rad_penalties)}, max={np.max(rad_penalties)}"
+        f"rad_penalties, mean={np.mean(rad_penalties)}, median={np.median(rad_penalties)}, std={np.std(rad_penalties)}, min={np.min(rad_penalties)}"
     )
     print(
-        f"vel_dir_penalties, mean={np.mean(vel_dir_penalties)}, std={np.std(vel_dir_penalties)}, min={np.min(vel_dir_penalties)}, max={np.max(vel_dir_penalties)}"
+        f"vel_x_penalties, mean={np.mean(vel_x_penalties)}, median={np.median(vel_x_penalties)}, std={np.std(vel_x_penalties)}, min={np.min(vel_x_penalties)}"
     )
     print(
-        f"orbit_vel_penalties, mean={np.mean(orbit_vel_penalties)}, std={np.std(orbit_vel_penalties)}, min={np.min(orbit_vel_penalties)}, max={np.max(orbit_vel_penalties)}"
+        f"vel_y_penalties, mean={np.mean(vel_y_penalties)}, median={np.median(vel_y_penalties)}, std={np.std(vel_y_penalties)}, min={np.min(vel_y_penalties)}"
+    )
+    print(
+        f"act_penalties, mean={np.mean(act_penalties)}, median={np.median(act_penalties)}, std={np.std(act_penalties)}, min={np.min(act_penalties)}"
     )
 
 
@@ -81,7 +91,7 @@ gym.envs.register(
 # ENV_NAME = "GoalContinuous2-v0"
 
 # model_path = "models/Jul15_18-21-47.854Kepler500-v0-g0.99-spe5000-TD3-a_lr0.0003-rf0-noi0.2-obs_normFalse-pi_ufr2_env_vt0.1_rt0.1.pkl"
-model_path = "models/Jul19_14-45-25.034Kepler500-v0-g0.99-spe5000-TD3-a_lr0.0003-rf0-noi0.2-obs_normFalse-pi_ufr2_dense_reward4.pkl"
+model_path = "models/Jul24_08-24-46.160Kepler500-v0-g0.99-spe5000-TD3-a_lr0.0003-bu_s2000000-rf0-noi0.2-obs_normFalse-pi_ufr2_dense_reward5_actpenalty.pkl"
 ENV_NAME = "Kepler-v0"
 
 td3 = TD3(

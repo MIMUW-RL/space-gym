@@ -100,8 +100,11 @@ if __name__ == "__main__":
     sparse_vel_thresh = 0.1
     sparse_r_thresh = 0.1
     reward_value = 0
-
+    rad_penalty_C = 2
+    numerator_C = 0.01
+    act_penalty_C = 1
     max_episode_steps = 100
+    
     gym.envs.register(
         id=f"Kepler{max_episode_steps}-v0",
         entry_point="gym_space.envs.kepler:KeplerContinuousEnv",
@@ -110,6 +113,9 @@ if __name__ == "__main__":
             "sparse_vel_thresh": sparse_vel_thresh,
             "sparse_r_thresh": sparse_r_thresh,
             "reward_value": reward_value,
+            "rad_penalty_C": rad_penalty_C,
+            "numerator_C": numerator_C,
+            "act_penalty_C": act_penalty_C
         },
     )
 
@@ -122,6 +128,9 @@ if __name__ == "__main__":
             "sparse_vel_thresh": sparse_vel_thresh,
             "sparse_r_thresh": sparse_r_thresh,
             "reward_value": reward_value,
+            "rad_penalty_C": rad_penalty_C,
+            "numerator_C": numerator_C,
+            "act_penalty_C": act_penalty_C
         },
     )
 
@@ -134,6 +143,9 @@ if __name__ == "__main__":
             "sparse_vel_thresh": sparse_vel_thresh,
             "sparse_r_thresh": sparse_r_thresh,
             "reward_value": reward_value,
+            "rad_penalty_C": rad_penalty_C,
+            "numerator_C": numerator_C,
+            "act_penalty_C": act_penalty_C
         },
     )
 
@@ -146,6 +158,9 @@ if __name__ == "__main__":
             "sparse_vel_thresh": sparse_vel_thresh,
             "sparse_r_thresh": sparse_r_thresh,
             "reward_value": reward_value,
+            "rad_penalty_C": rad_penalty_C,
+            "numerator_C": numerator_C,
+            "act_penalty_C": act_penalty_C
         },
     )
 
@@ -158,6 +173,9 @@ if __name__ == "__main__":
             "sparse_vel_thresh": sparse_vel_thresh,
             "sparse_r_thresh": sparse_r_thresh,
             "reward_value": reward_value,
+            "rad_penalty_C": rad_penalty_C,
+            "numerator_C": numerator_C,
+            "act_penalty_C": act_penalty_C
         },
     )
 
@@ -171,6 +189,9 @@ if __name__ == "__main__":
             "sparse_vel_thresh": sparse_vel_thresh,
             "sparse_r_thresh": sparse_r_thresh,
             "reward_value": reward_value,
+            "rad_penalty_C": rad_penalty_C,
+            "numerator_C": numerator_C,
+            "act_penalty_C": act_penalty_C
         },
     )
 
@@ -210,7 +231,7 @@ if __name__ == "__main__":
                 i,
             )
             c["log_dir"] = c["tensorboard_dir"] + "/logdir/"
-            c["tensorboard_comment"] = f"dense_reward5_actpenalty"
+            c["tensorboard_comment"] = f"dense_reward5_actpenalty_step0.2"
             configs.append(c)
     if len(configs) == 1:
         train(configs[0], args)

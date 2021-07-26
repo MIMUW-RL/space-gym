@@ -50,7 +50,7 @@ class KeplerEnv(SpaceshipEnv, ABC):
         """
         Vt = np.zeros((2,))
 
-        dir = np.sign(pos_xy[1]) * ecc
+        dir = np.sign(pos_xy[1]) * curl
         Vt[0] = dir
         Vt[1] = -dir * pos_xy[0] / pos_xy[1]
     
@@ -102,7 +102,8 @@ class KeplerEnv(SpaceshipEnv, ABC):
         reward = C / (self.rad_penalty_C*rad_penalty + vel_x_penalty + vel_y_penalty + self.act_penalty_C*act_penalty + C)
         self.rad_penalty = rad_penalty
         self.vel_x_penalty = vel_x_penalty
-        self.vel_y_penalty = vel_y_penalty        
+        self.vel_y_penalty = vel_y_penalty
+        self.act_penalty = act_penalty   
         return reward
 
 
@@ -181,6 +182,10 @@ class KeplerEnv(SpaceshipEnv, ABC):
 
         return dense_r
 
+    def _make_observation(self):
+        super()._make_observation()
+        #dodac parametry orbity docelowej do self.observation
+
     def __init__(
         self,
         test_env=False,
@@ -207,7 +212,7 @@ class KeplerEnv(SpaceshipEnv, ABC):
             planets=[planet, border],
             world_size=2 * self._border_radius,
             max_abs_vel_angle=2,
-            step_size=0.1,
+            step_size=0.2,
             vel_xy_std=np.ones(2),
             with_lidar=False,
             with_goal=False,

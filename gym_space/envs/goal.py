@@ -1,6 +1,7 @@
 from abc import ABC
 import numpy as np
 from typing import Union
+import itertools
 
 from gym_space.planet import Planet
 from gym_space.ship_params import ShipParams
@@ -160,9 +161,28 @@ class GoalEnv(SpaceshipEnv, ABC):
 
         if not self._hex_debug and self._np_random.uniform() < 0.5:
             self._hex_flip_xy = True
+        else:
+            self._hex_flip_xy = False
 
         tiles_nrs = self._np_random.choice(self._hex_n_tiles, size=self.n_objects, replace=False)
-        # TODO: ship and goal are two objects most apart with some probability
+
+        # ship and goal are two objects most apart with some probability
+        if self._np_random.uniform() < 0.5:
+            max_taxi_dist = -np.inf
+            max_dist_idx = None
+            for idx_a, idx_b in itertools.combinations(range(len(tiles_nrs[:10])), 2):
+                tile_nr_a = tiles_nrs[idx_a]
+                tile_nr_b = tiles_nrs[idx_b]
+                tile_a = self._hex_tiles[tile_nr_a]
+                tile_b = self._hex_tiles[tile_nr_b]
+                taxi_dist = abs(tile_a[0] - tile_b[0]) + abs(tile_a[1] - tile_b[1])
+                if taxi_dist > max_taxi_dist:
+                    max_taxi_dist = taxi_dist
+                    max_dist_idx = [idx_a, idx_b]
+            new_tiles_nrs_mask = np.zeros(self.n_objects, dtype=bool)
+            new_tiles_nrs_mask[max_dist_idx] = True
+            tiles_nrs = np.concatenate([tiles_nrs[new_tiles_nrs_mask], tiles_nrs[~new_tiles_nrs_mask]])
+
         self._hex_free_tiles_nrs = [i for i in range(self._hex_n_tiles) if i not in tiles_nrs]
         ship_tile_nr, self._hex_goal_tile_nr = tiles_nrs[:2]
         # ship will move from its tile until goal is reached
@@ -173,6 +193,7 @@ class GoalEnv(SpaceshipEnv, ABC):
         objects_shift_angles = self._np_random.uniform(0, 2 * np.pi, size=self.n_objects)
         objects_shift_unit_vectors = helpers.angle_to_unit_vector(objects_shift_angles)
 
+        # FIXME: it doesn't give uniform distribution over the circle!
         objects_shift_magnitudes = self._np_random.uniform(size=self.n_objects)
         max_radius = self._hex_height / 2
         objects_shift_magnitudes[0] *= max_radius - self.ship_radius

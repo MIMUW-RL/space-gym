@@ -1,6 +1,7 @@
 import numpy as np
 from typing import Union
 import gym
+import warnings
 
 from gym_space import helpers
 
@@ -12,6 +13,8 @@ class HexagonalTiling:
     _debug = False
 
     def __init__(self, n_planets: int, world_size: float):
+        if self._debug:
+            warnings.warn("HexagonalTiling in DEBUG mode", UserWarning)
         self._np_random = None
         self.seed()
 
@@ -101,6 +104,10 @@ class HexagonalTiling:
             self._free_tiles_nrs.append(previous_ship_tile_nr)
             # ship now occupies the same tile as current goal
             self._ship_tile_nr = self._goal_tile_nr
+
+        if self._np_random.uniform() < 0.25:
+            self._goal_tile_nr = self._ship_tile_nr
+            return 
 
         n_candidates = min(MAX_GOAL_CANDIDATES, len(self._free_tiles_nrs))
         tile_nr_idx_candidates = self._np_random.choice(len(self._free_tiles_nrs), size=n_candidates, replace=False)

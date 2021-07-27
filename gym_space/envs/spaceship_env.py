@@ -98,7 +98,7 @@ class SpaceshipEnv(gym.Env, ABC):
             obs_high += 2 * len(self.planets) * [2 * np.sqrt(2)]
             if self.with_goal:
                 obs_high += 2 * [2 * np.sqrt(2)]
-        obs_high = np.array(obs_high)
+        obs_high = np.array(obs_high, dtype=np.float32)
         self.observation_space = Box(low=-obs_high, high=obs_high)
 
     def _make_observation(self):
@@ -201,7 +201,8 @@ class DiscreteSpaceshipEnv(SpaceshipEnv, ABC):
 
 class ContinuousSpaceshipEnv(SpaceshipEnv, ABC):
     def _init_action_space(self):
-        self.action_space = Box(low=-np.ones(2), high=np.ones(2))
+        ones = np.ones(2, dtype=np.float32)
+        self.action_space = Box(low=-ones, high=ones)
 
     @staticmethod
     def _translate_raw_action(raw_action: np.array) -> tuple[float, float]:

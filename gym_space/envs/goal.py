@@ -14,7 +14,6 @@ WORLD_SIZE = 3.0
 
 class GoalEnv(SpaceshipEnv, ABC):
     _total_planets_mass = 1e9
-    _hex_debug = False
 
     def __init__(
         self,
@@ -131,8 +130,8 @@ class GoalEnv(SpaceshipEnv, ABC):
 
     def _reward(self) -> float:
         reward = self.survival_reward_scale + self.goal_vel_reward_scale * self._goal_vel_reward()
-        # if np.linalg.norm(self.goal_pos - self._ship_state.pos_xy) < self.goal_radius:
-        if np.linalg.norm(self.goal_pos - self._ship_state.pos_xy) < 0.9:
+        threshold = 0.9 if self._hexagonal_tiling._debug else self.goal_radius
+        if np.linalg.norm(self.goal_pos - self._ship_state.pos_xy) < threshold:
             reward += self.goal_sparse_reward
             self._resample_goal()
         return reward

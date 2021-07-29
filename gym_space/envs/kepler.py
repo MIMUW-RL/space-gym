@@ -1,7 +1,7 @@
 from abc import ABC
 import numpy as np
 
-from gym_space.helpers import angle_to_unit_vector, G, vector_to_angle
+from gym_space.helpers import angle_to_unit_vector, G, vector_to_angle, angle_to_unit_vector
 from gym_space.planet import Planet
 from gym_space.ship_params import ShipParams
 from .spaceship_env import SpaceshipEnv, DiscreteSpaceshipEnv, ContinuousSpaceshipEnv
@@ -36,6 +36,12 @@ class KeplerEnv(SpaceshipEnv, ABC):
         A[1] = -vel_xy[0] * L - m * G * m * M * pos_xy_n[1]
         return A
 
+    def _b(self, a, ecc):
+        return np.sqrt(a * a * (1 - ecc * ecc))
+
+    def _c(self, a, b):
+        return np.sqrt(a * a - b * b)
+
     def _rotate(self, pos_xy, alpha):
         R = np.zeros((2, 2))
         R[0, 0] = np.cos(alpha)
@@ -58,45 +64,43 @@ class KeplerEnv(SpaceshipEnv, ABC):
         # position in rotated coordinates by the reference angle
         Vt = np.zeros((2,))
         a = ref_a
-        print(f"ecc={ecc}")
-        b = np.sqrt(a * a * (1 - ecc * ecc))
-
+        b = self._b(a, ecc)
         pos_wz = self._rotate(pos_xy, ref_angle)
-        print(f"angle={ref_angle}")
-
-        c = np.sqrt(a * a - b * b)
-        pos_wz[0] = pos_wz[0] - c
-        print(f"pos_xy={pos_xy}, pos_wz={pos_wz}")
-        print(f"c={c}")
+        c = self._c(a, b)
+        pos_wz[0] = pos_wz[0] - c        
         theta = vector_to_angle(pos_wz)
-        print(f"theta={theta}")
-        print(f"a={a} rad={np.linalg.norm(pos_wz)}")
-        dir = np.sign(pos_wz[1]) * curl
-
-        Vt[0] = -a / b * pos_wz[1]
-        Vt[1] = b / a * pos_wz[0]
-
+        #project pos_wz onto orbit to compute the target velocity
+        target_rad = b / np.sqrt(1 - (ecc * np.cos(theta))**2)
+        pos_wz = pos_wz * target_rad / np.linalg.norm(pos_wz)
+        Vt[0] = - curl * a / b * pos_wz[1]
+        Vt[1] = curl * b / a * pos_wz[0]
         # orbit velocity r = distance between orbiting bodies
-        r = np.linalg.norm(pos_xy)
+        
+        r = np.linalg.norm(pos_wz + np.array([c, 0]))        
         Vt = Vt * self._orbit_vel(r, a) / (np.linalg.norm(Vt))
-
         Vt = self._rotate(Vt, -ref_angle)
-        print(f"Vt={Vt}")
-
         return Vt
+
+    def _orbit_cur_rad(self, pos_xy, ref_angle, ref_a, ecc):
+        a = ref_a
+        b = self._b(a, ecc)
+        c = self._c(a, b)        
+        pos_wz = self._rotate(pos_xy, ref_angle)       
+        pos_wz[0] = pos_wz[0] - c        
+        return np.linalg.norm(pos_wz)
 
     def _orbit_target_rad(self, pos_xy, ref_angle, ref_a, ecc) -> np.array:
         """ get the radius for the current angle theta for the orbit having given ecc."""
 
         a = ref_a
-        b = np.sqrt(a * a * (1 - ecc * ecc))
+        b = self._b(a, ecc)
+        c = self._c(a, b)
 
-        pos_wz = self._rotate(pos_xy, ref_angle)
-        c = np.sqrt(a * a - b * b)
-        pos_wz[0] = pos_wz[0] + c
-        theta = vector_to_angle(pos_wz)
-        # in this coordinates radius is equal to (asin(theta))^2+(bcos(theta))^2
-        return a / (1 + ecc * np.cos(theta))
+        pos_wz = self._rotate(pos_xy, ref_angle)        
+        pos_wz[0] = pos_wz[0] - c
+        theta = vector_to_angle(pos_wz)        
+        #return np.sqrt((a*np.cos(theta))**2 + (b*np.sin(theta))**2)
+        return b / np.sqrt(1 - (ecc * np.cos(theta))**2)
 
     def _sparse_reward(self, pos_xy, vel_xy, ref_radius, vel_ref) -> np.array:
         """ reward added if pos_xy and vel_xy is sufficiently close to the reference"""
@@ -134,7 +138,7 @@ class KeplerEnv(SpaceshipEnv, ABC):
     def _dense_reward5(self, pos_xy, vel_xy) -> np.array:
         """ reward increasing with decreasing distance to reference values"""
         C = self.numerator_C
-        cur_rad = np.linalg.norm(pos_xy)
+        cur_rad = self._orbit_cur_rad(pos_xy, self.ref_orbit_angle, self.ref_orbit_a, self.ref_orbit_eccentricity)
 
         target_vel = self._orbit_target_vel(
             pos_xy,
@@ -142,17 +146,17 @@ class KeplerEnv(SpaceshipEnv, ABC):
             self.ref_orbit_a,
             self.ref_orbit_eccentricity,
         )
+        
         target_rad = self._orbit_target_rad(
             pos_xy,
             self.ref_orbit_angle,
             self.ref_orbit_a,
             self.ref_orbit_eccentricity,
         )
-        print(f"vel_xy={vel_xy}")
-        rad_penalty = np.abs(cur_rad - target_rad)
-        vel_x_penalty = np.abs(target_vel[0] - vel_xy[0])
-        vel_y_penalty = np.abs(target_vel[1] - vel_xy[1])
-        act_penalty = np.linalg.norm(self.last_action)
+        rad_penalty = np.abs(cur_rad - target_rad)        
+        vel_x_penalty = np.abs(target_vel[0] - vel_xy[0])        
+        vel_y_penalty = np.abs(target_vel[1] - vel_xy[1])        
+        act_penalty = np.linalg.norm(self.last_action)        
 
         reward = C / (
             self.rad_penalty_C * rad_penalty
@@ -174,16 +178,16 @@ class KeplerEnv(SpaceshipEnv, ABC):
 
         return dense_r
 
-    def _make_observation(self):
-        super()._make_observation()
-        # dodac parametry orbity docelowej do self.observation
+    #def _make_observation(self):
+    #    super()._make_observation()
+    #    # dodac parametry orbity docelowej do self.observation
 
     def __init__(
         self,
         test_env=False,
         ref_orbit_a=1.2,
         ref_orbit_eccentricity=0.5,
-        ref_orbit_angle=0,
+        ref_orbit_angle=3.75,
         sparse_vel_thresh=0.1,
         sparse_r_thresh=0.1,
         reward_value=1.0,
@@ -232,21 +236,22 @@ class KeplerEnv(SpaceshipEnv, ABC):
         )
         pos_xy = angle_to_unit_vector(planet_angle) * ship_planet_center_distance
         ship_angle = self._np_random.uniform(0, 2 * np.pi)
-        # velocities_xy = self._np_random.standard_normal(2) * 0.05
-        ecc = 0.8
-        a = self.ref_orbit_a
-        b = np.sqrt(a * a * (1 - ecc * ecc))
-        c = np.sqrt(a * a - b * b)
-        pos_xy = pos_xy / np.linalg.norm(pos_xy) * (a + c)
-        ref_angle = vector_to_angle(pos_xy)
-        self.ref_orbit_angle = ref_angle
-
-        velocities_xy = self._orbit_target_vel(
-            pos_xy,
-            self.ref_orbit_angle,
-            self.ref_orbit_a,
-            self.ref_orbit_eccentricity,
-        )
+        velocities_xy = self._np_random.standard_normal(2) * 0.05
+        
+        # set velocity of the target orbit
+        #ecc = self.ref_orbit_eccentricity
+        #a = self.ref_orbit_a
+        #b = self._b(a, ecc)
+        #c = self._c(a, b)
+        #pos_xy = angle_to_unit_vector(self.ref_orbit_angle) * (a + c)
+        #ref_angle = vector_to_angle(pos_xy)
+        #self.ref_orbit_angle = ref_angle
+        #velocities_xy = self._orbit_target_vel(
+        #    pos_xy,
+        #    self.ref_orbit_angle,
+        #    self.ref_orbit_a,
+        #    self.ref_orbit_eccentricity,
+        #)
 
         max_abs_ang_vel = 0.7 * self.max_abs_vel_angle
         angular_velocity = self._np_random.standard_normal() * max_abs_ang_vel / 5

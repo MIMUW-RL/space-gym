@@ -11,8 +11,8 @@ def vector_to_angle(vector: np.array) -> float:
 
 def orthogonal_proj(a: np.array, v: np.array) -> np.array:
     """orthogonal projection of v onto a"""
-    c = (a[0]*v[0] + a[1]*v[1]) / np.linalg.norm(a)
-    return  a * c
+    c = (a[0] * v[0] + a[1] * v[1]) / np.linalg.norm(a)
+    return a * c
 
 
 # gravitational constant

@@ -82,7 +82,7 @@ gym.envs.register(
 gym.envs.register(
     id="Kepler-v0",
     entry_point="gym_space.envs.kepler:KeplerContinuousEnv",
-    max_episode_steps=500,
+    max_episode_steps=1000,
 )
 
 # model_path = "models/Jun30_13-12-28.489Orbit-v0-g0.99-spe5000-TD3-a_lr0.0003-rf0-noi0.2-obs_normFalse-pi_ufr2.pkl"
@@ -91,7 +91,7 @@ gym.envs.register(
 # ENV_NAME = "GoalContinuous2-v0"
 
 # model_path = "models/Jul15_18-21-47.854Kepler500-v0-g0.99-spe5000-TD3-a_lr0.0003-rf0-noi0.2-obs_normFalse-pi_ufr2_env_vt0.1_rt0.1.pkl"
-model_path = "models/Jul24_08-24-46.160Kepler500-v0-g0.99-spe5000-TD3-a_lr0.0003-bu_s2000000-rf0-noi0.2-obs_normFalse-pi_ufr2_dense_reward5_actpenalty.pkl"
+model_path = "models/Jul27_11-07-49.186Kepler500-v0-g0.99-spe5000-TD3-a_lr0.0003-rf0-noi0.2-obs_normFalse-pi_ufr2_dense_reward5_actp0.5_numC0.01_step0.1.pkl"
 ENV_NAME = "Kepler-v0"
 
 td3 = TD3(

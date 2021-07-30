@@ -8,6 +8,7 @@ import time
 import neptune
 from rltoolkit import EvalsWrapper, EvalsWrapperACM
 from itertools import product
+import gym_space
 
 ALGORITHMS = ["ddpg", "sac", "td3"]
 
@@ -97,14 +98,12 @@ if __name__ == "__main__":
     with open(args.config) as f:
         config = yaml.safe_load(f)
 
-    sparse_vel_thresh = 0.1
-    sparse_r_thresh = 0.1
     reward_value = 0
-
     rad_penalty_C = 2
     numerator_C = 0.01
     act_penalty_C = 0.5
-    step_size = 0.1
+    step_size = 0.15
+    randomize = False
 
     max_episode_steps = 100
     gym.envs.register(
@@ -112,13 +111,12 @@ if __name__ == "__main__":
         entry_point="gym_space.envs.kepler:KeplerContinuousEnv",
         max_episode_steps=max_episode_steps,
         kwargs={
-            "sparse_vel_thresh": sparse_vel_thresh,
-            "sparse_r_thresh": sparse_r_thresh,
             "reward_value": reward_value,
             "rad_penalty_C": rad_penalty_C,
             "numerator_C": numerator_C,
             "act_penalty_C": act_penalty_C,
             "step_size": step_size,
+            "randomize": randomize,
         },
     )
 
@@ -128,13 +126,12 @@ if __name__ == "__main__":
         entry_point="gym_space.envs.kepler:KeplerContinuousEnv",
         max_episode_steps=max_episode_steps,
         kwargs={
-            "sparse_vel_thresh": sparse_vel_thresh,
-            "sparse_r_thresh": sparse_r_thresh,
             "reward_value": reward_value,
             "rad_penalty_C": rad_penalty_C,
             "numerator_C": numerator_C,
             "act_penalty_C": act_penalty_C,
             "step_size": step_size,
+            "randomize": randomize,
         },
     )
 
@@ -144,13 +141,12 @@ if __name__ == "__main__":
         entry_point="gym_space.envs.kepler:KeplerContinuousEnv",
         max_episode_steps=max_episode_steps,
         kwargs={
-            "sparse_vel_thresh": sparse_vel_thresh,
-            "sparse_r_thresh": sparse_r_thresh,
             "reward_value": reward_value,
             "rad_penalty_C": rad_penalty_C,
             "numerator_C": numerator_C,
             "act_penalty_C": act_penalty_C,
             "step_size": step_size,
+            "randomize": randomize,
         },
     )
 
@@ -160,13 +156,12 @@ if __name__ == "__main__":
         entry_point="gym_space.envs.kepler:KeplerContinuousEnv",
         max_episode_steps=max_episode_steps,
         kwargs={
-            "sparse_vel_thresh": sparse_vel_thresh,
-            "sparse_r_thresh": sparse_r_thresh,
             "reward_value": reward_value,
             "rad_penalty_C": rad_penalty_C,
             "numerator_C": numerator_C,
             "act_penalty_C": act_penalty_C,
             "step_size": step_size,
+            "randomize": randomize,
         },
     )
 
@@ -176,13 +171,12 @@ if __name__ == "__main__":
         entry_point="gym_space.envs.kepler:KeplerContinuousEnv",
         max_episode_steps=max_episode_steps,
         kwargs={
-            "sparse_vel_thresh": sparse_vel_thresh,
-            "sparse_r_thresh": sparse_r_thresh,
             "reward_value": reward_value,
             "rad_penalty_C": rad_penalty_C,
             "numerator_C": numerator_C,
             "act_penalty_C": act_penalty_C,
             "step_size": step_size,
+            "randomize": randomize,
         },
     )
 
@@ -193,13 +187,12 @@ if __name__ == "__main__":
         entry_point="gym_space.envs.kepler:KeplerContinuousEnv",
         max_episode_steps=max_episode_steps,
         kwargs={
-            "sparse_vel_thresh": sparse_vel_thresh,
-            "sparse_r_thresh": sparse_r_thresh,
             "reward_value": reward_value,
             "rad_penalty_C": rad_penalty_C,
             "numerator_C": numerator_C,
             "act_penalty_C": act_penalty_C,
             "step_size": step_size,
+            "randomize": randomize,
         },
     )
 

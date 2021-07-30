@@ -1,6 +1,6 @@
 from gym.envs.registration import register
 
-# Orbit
+# Do not crash
 
 register(
     id="DoNotCrashDiscrete-v0",

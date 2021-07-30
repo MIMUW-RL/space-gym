@@ -36,7 +36,6 @@ class Renderer:
         self.goal_transform = None
         if self.goal_pos is not None:
             self._init_goal()
-        print(num_prev_pos_vis)
         self.prev_ship_pos = deque(maxlen=num_prev_pos_vis)
         self.prev_pos_color_decay = prev_pos_color_decay
         self.reset(self.goal_pos)

@@ -36,7 +36,7 @@ step_size = 0.15
 register(
     id="KeplerCircleOrbit-v0",
     entry_point="gym_space.envs:KeplerContinuousEnv",
-    max_episode_steps=300,
+    max_episode_steps=500,
     kwargs={
         "reward_value": 0,
         "rad_penalty_C": 2,
@@ -53,7 +53,7 @@ register(
 register(
     id="KeplerEllipseEasy-v0",
     entry_point="gym_space.envs:KeplerContinuousEnv",
-    max_episode_steps=300,
+    max_episode_steps=500,
     kwargs={
         "reward_value": 0,
         "rad_penalty_C": 2,

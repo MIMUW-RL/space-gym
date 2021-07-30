@@ -3,10 +3,20 @@ import time
 import gym
 import numpy as np
 
+step_size = 0.15
+
 gym.envs.register(
     id="KeplerDiscrete-v0",
     entry_point="gym_space.envs.kepler:KeplerDiscreteEnv",
     max_episode_steps=1000,
+    kwargs={
+        "reward_value": 0,
+        "rad_penalty_C": 2,
+        "numerator_C": 0.01,
+        "act_penalty_C": 0.5,
+        "step_size": step_size,
+        "randomize": True,
+    },
 )
 
 if __name__ == "__main__":

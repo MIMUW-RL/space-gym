@@ -39,7 +39,7 @@ def visualise_episode_vanilla(algo):
         print(f"act_penalty={algo.env.act_penalty}")
 
         frame = algo.env.render(mode="rgb_array")
-        # plt.imsave(f"gifs/{i:05d}.png", frame)
+        plt.imsave(f"gifs/{i:05d}.png", frame)
         ep_ret += r
         i += 1
     print(f"ep_ret={ep_ret}")

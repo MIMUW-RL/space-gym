@@ -194,7 +194,7 @@ class KeplerEnv(SpaceshipEnv, ABC):
         numerator_C=0.01,
         rad_penalty_C=2.0,
         act_penalty_C=0.5,
-        step_size=0.15,
+        step_size=0.1,
     ):
         planet = Planet(center_pos=np.zeros(2), mass=6e8, radius=self._planet_radius)
         # here we use planet outline as external border, i.e. we fly "inside planet"
@@ -232,26 +232,26 @@ class KeplerEnv(SpaceshipEnv, ABC):
         ship_angle = self._np_random.uniform(0, 2 * np.pi)
 
         # set velocity of the target orbit
-        # ecc = self.ref_orbit_eccentricity
-        # a = self.ref_orbit_a
-        # b = self._b(a, ecc)
-        # c = self._c(a, b)
-        # pos_xy = angle_to_unit_vector(self.ref_orbit_angle) * (a + c)
-        # ref_angle = vector_to_angle(pos_xy)
-        # self.ref_orbit_angle = ref_angle
-        # velocities_xy = self._orbit_target_vel(
-        #    pos_xy,
-        #    self.ref_orbit_angle,
-        #    self.ref_orbit_a,
-        #    self.ref_orbit_eccentricity,
-        # )
+        ecc = self.ref_orbit_eccentricity
+        a = self.ref_orbit_a
+        b = self._b(a, ecc)
+        c = self._c(a, b)
+        pos_xy = angle_to_unit_vector(self.ref_orbit_angle) * (a + c)
+        ref_angle = vector_to_angle(pos_xy)
+        self.ref_orbit_angle = ref_angle
+        velocities_xy = self._orbit_target_vel(
+            pos_xy,
+            self.ref_orbit_angle,
+            self.ref_orbit_a,
+            self.ref_orbit_eccentricity,
+        )
 
         # reset goal orbits if randomize is on, random eccentricity and angle
         if self.randomize:
             self.ref_orbit_eccentricity = np.random.uniform() * 0.7
             self.ref_orbit_angle = np.random.uniform() * 2 * np.pi
 
-        velocities_xy = self._np_random.standard_normal(2) * 0.05
+        # velocities_xy = self._np_random.standard_normal(2) * 0.05
 
         max_abs_ang_vel = 0.7 * self.max_abs_vel_angle
         angular_velocity = self._np_random.standard_normal() * max_abs_ang_vel / 5

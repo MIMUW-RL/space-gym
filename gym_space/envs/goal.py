@@ -18,8 +18,9 @@ class GoalEnv(SpaceshipEnv, ABC):
     def __init__(
         self,
         n_planets: int = 2,
-        survival_reward_scale: float = 0.25,
+        survival_reward_scale: float = 0.0,
         goal_vel_reward_scale: float = 0.75,
+        safety_reward_scale: float = 0.25,
         goal_sparse_reward: float = 10.0,
         renderer_kwargs: dict = None,
     ):
@@ -44,6 +45,7 @@ class GoalEnv(SpaceshipEnv, ABC):
         self.survival_reward_scale = survival_reward_scale
         self.goal_vel_reward_scale = goal_vel_reward_scale
         self.goal_sparse_reward = goal_sparse_reward
+        self.safety_reward_scale = safety_reward_scale
 
         super().__init__(
             ship_params=ship,
@@ -129,11 +131,16 @@ class GoalEnv(SpaceshipEnv, ABC):
         self._ship_state.set(ship_pos, ship_angle, velocities_xy, angular_velocity)
 
     def _reward(self) -> float:
-        reward = self.survival_reward_scale + self.goal_vel_reward_scale * self._goal_vel_reward()
+        reward = (
+                self.survival_reward_scale +
+                self.goal_vel_reward_scale * self._goal_vel_reward() +
+                self.safety_reward_scale * self._safety_reward()
+        )
         threshold = 0.9 if self._hexagonal_tiling._debug else self.goal_radius
         if np.linalg.norm(self.goal_pos - self._ship_state.pos_xy) < threshold:
             reward += self.goal_sparse_reward
             self._resample_goal()
+        print(reward)
         return reward
 
     def _goal_vel_reward(self) -> float:
@@ -148,10 +155,65 @@ class GoalEnv(SpaceshipEnv, ABC):
         if vel_toward_goal < 0:
             return 0.0
         # don't encourage very high velocities
-        r = np.tanh(3 * vel_toward_goal)
+        r = np.tanh(5 * vel_toward_goal)
         assert 0.0 <= r <= 1
         return r
 
+    def _safety_reward(self) -> float:
+        """Give reward for the time it would take to crash if velocity didn't change"""
+        vel_x, vel_y = self._ship_state.vel_xy
+        if np.isclose(vel_x, 0):
+            # TODO
+            return 1
+        a = vel_y / vel_x
+        ship_x, ship_y = self._ship_state.pos_xy
+        b = ship_y - a * ship_x
+
+        min_dist = np.inf
+        # Find intersections with planets
+        for planet in self.planets:
+            x0, y0 = planet.center_pos
+            r = planet.radius
+            # (x-x0)^2 + (y-y0)^2 = r^2
+            # ax + b = y
+            #
+            # a_ x^2 + b_ x + c_ = 0
+            # where
+            a_ = a**2 + 1
+            b_ = 2 * a * (b - y0) - 2 * x0
+            c_ = x0**2 - r**2 + (b - y0)**2
+            delta = b_**2 - 4 * a_ * c_
+            if delta < 0:
+                continue
+            sqrt_delta = np.sqrt(delta)
+            x_sol_0 = (-b_ + sqrt_delta) / (2 * a_)
+            x_sol_1 = (-b_ - sqrt_delta) / (2 * a_)
+            for x_sol in (x_sol_0, x_sol_1):
+                if np.sign(x_sol - ship_x) != np.sign(vel_x):
+                    continue
+                y_sol = a * x_sol + b
+                dist = np.sqrt((ship_x - x_sol)**2 + (ship_y - y_sol)**2)
+                min_dist = min(min_dist, dist)
+
+        # Find intersections with world boundary
+        s = self.world_size / 2
+        if vel_x > 0 and -s <= (y := a * s + b) <= s:
+            dist = np.sqrt((ship_x - s)**2 + (ship_y - y)**2)
+            min_dist = min(min_dist, dist)
+        if vel_x < 0 and -s <= (y := - a * s + b) <= s:
+            dist = np.sqrt((ship_x + s)**2 + (ship_y - y)**2)
+            min_dist = min(min_dist, dist)
+        if a != 0:
+            if vel_y > 0 and -s <= (x := (s - b) / a) <= s:
+                dist = np.sqrt((ship_x - x)**2 + (ship_y - s)**2)
+                min_dist = min(min_dist, dist)
+            if vel_y < 0 and -s <= (x := (- s - b) / a) <= s:
+                dist = np.sqrt((ship_x - x)**2 + (ship_y + s)**2)
+                min_dist = min(min_dist, dist)
+
+        time_to_crash = min_dist / np.linalg.norm(self._ship_state.vel_xy)
+        reward = np.tanh(time_to_crash / 5)
+        return reward
 
 class GoalDiscreteEnv(GoalEnv, DiscreteSpaceshipEnv):
     pass

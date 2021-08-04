@@ -102,7 +102,7 @@ if __name__ == "__main__":
     rad_penalty_C = 2
     numerator_C = 0.01
     act_penalty_C = 0.5
-    step_size = 0.15
+    step_size = 0.1
     randomize = False
 
     max_episode_steps = 100

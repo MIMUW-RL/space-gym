@@ -8,7 +8,7 @@ from gym_space.ship_params import ShipParams
 from gym_space.helpers import angle_to_unit_vector, vector_to_angle
 import numpy as np
 
-from gym_space.dynamic_model import ShipState
+from gym_space.dynamic_model import ShipState, ship_vector_field
 
 
 @dataclass
@@ -88,6 +88,12 @@ class SpaceshipEnv(gym.Env, ABC):
     def seed(self, seed=None):
         self._np_random, seed = gym.utils.seeding.np_random(seed)
         return [seed]
+
+    def vector_field(self, raw_action, state_vec: np.array = None):
+        if state_vec is None:
+            state_vec = self._ship_state._state_vec
+        action = np.array(self._translate_raw_action(raw_action))
+        return ship_vector_field(self.ship_params, self.planets, action, 0.0, state_vec)
 
     def _init_observation_space(self):
         obs_high = [1.0, 1.0, 1.0, 1.0, np.inf, np.inf, 1.0]

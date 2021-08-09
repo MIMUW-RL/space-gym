@@ -70,7 +70,6 @@ class SpaceshipEnv(gym.Env, ABC):
         assert self.action_space.contains(raw_action), raw_action
         action = np.array(self._translate_raw_action(raw_action))
         self.last_action = action
-
         done = self._ship_state.step(action, self.step_size)
         self._make_observation()
         reward = self._reward()

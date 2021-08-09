@@ -56,8 +56,8 @@ class Renderer:
             thrust_action, torque_action = action
         else:
             thrust_action = torque_action = 0
-        exhaust_color = 3 * [1 - thrust_action]
-        self.exhaust.set_color(*exhaust_color)
+        # hack to be able to set opacity
+        self.exhaust._color.vec4 = (0, 0, 0, thrust_action)
         self._torque_img_transform.scale = (-torque_action, np.abs(torque_action))
         self._draw_ship_trace()
         return self.viewer.render(mode == "rgb_array")
@@ -152,12 +152,12 @@ class Renderer:
             self.goal_transform.set_translation(*self._world_to_screen(self.goal_pos))
 
     def _draw_ship_trace(self):
-        color_diff = 1.0
+        opacity = 1.0
         for i in range(1, len(self.prev_ship_pos)):
             line = rendering.Line(self.prev_ship_pos[-i], self.prev_ship_pos[-i - 1])
-            color = 3 * [1 - color_diff]
-            line.set_color(*color)
-            color_diff *= self.prev_pos_color_decay
+            # hack to be able to set opacity
+            line._color.vec4 = (0, 0, 0, opacity)
+            opacity *= self.prev_pos_color_decay
             self.viewer.add_onetime(line)
 
     def _world_to_screen(self, world_pos: np.array):

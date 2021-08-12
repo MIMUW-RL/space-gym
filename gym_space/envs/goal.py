@@ -1,8 +1,5 @@
 from abc import ABC
 import numpy as np
-from typing import Union
-import itertools
-
 from gym_space.planet import Planet
 from gym_space.ship_params import ShipParams
 from gym_space import helpers

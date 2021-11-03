@@ -98,104 +98,6 @@ if __name__ == "__main__":
     with open(args.config) as f:
         config = yaml.safe_load(f)
 
-    reward_value = 0
-    rad_penalty_C = 2
-    numerator_C = 0.01
-    act_penalty_C = 0.5
-    step_size = 0.1
-    randomize = False
-
-    max_episode_steps = 100
-    gym.envs.register(
-        id=f"Kepler{max_episode_steps}-v0",
-        entry_point="gym_space.envs.kepler:KeplerContinuousEnv",
-        max_episode_steps=max_episode_steps,
-        kwargs={
-            "reward_value": reward_value,
-            "rad_penalty_C": rad_penalty_C,
-            "numerator_C": numerator_C,
-            "act_penalty_C": act_penalty_C,
-            "step_size": step_size,
-            "randomize": randomize,
-        },
-    )
-
-    max_episode_steps = 200
-    gym.envs.register(
-        id=f"Kepler{max_episode_steps}-v0",
-        entry_point="gym_space.envs.kepler:KeplerContinuousEnv",
-        max_episode_steps=max_episode_steps,
-        kwargs={
-            "reward_value": reward_value,
-            "rad_penalty_C": rad_penalty_C,
-            "numerator_C": numerator_C,
-            "act_penalty_C": act_penalty_C,
-            "step_size": step_size,
-            "randomize": randomize,
-        },
-    )
-
-    max_episode_steps = 300
-    gym.envs.register(
-        id=f"Kepler{max_episode_steps}-v0",
-        entry_point="gym_space.envs.kepler:KeplerContinuousEnv",
-        max_episode_steps=max_episode_steps,
-        kwargs={
-            "reward_value": reward_value,
-            "rad_penalty_C": rad_penalty_C,
-            "numerator_C": numerator_C,
-            "act_penalty_C": act_penalty_C,
-            "step_size": step_size,
-            "randomize": randomize,
-        },
-    )
-
-    max_episode_steps = 500
-    gym.envs.register(
-        id=f"Kepler{max_episode_steps}-v0",
-        entry_point="gym_space.envs.kepler:KeplerContinuousEnv",
-        max_episode_steps=max_episode_steps,
-        kwargs={
-            "reward_value": reward_value,
-            "rad_penalty_C": rad_penalty_C,
-            "numerator_C": numerator_C,
-            "act_penalty_C": act_penalty_C,
-            "step_size": step_size,
-            "randomize": randomize,
-        },
-    )
-
-    max_episode_steps = 750
-    gym.envs.register(
-        id=f"Kepler{max_episode_steps}-v0",
-        entry_point="gym_space.envs.kepler:KeplerContinuousEnv",
-        max_episode_steps=max_episode_steps,
-        kwargs={
-            "reward_value": reward_value,
-            "rad_penalty_C": rad_penalty_C,
-            "numerator_C": numerator_C,
-            "act_penalty_C": act_penalty_C,
-            "step_size": step_size,
-            "randomize": randomize,
-        },
-    )
-
-    max_episode_steps = 1000
-
-    gym.envs.register(
-        id=f"Kepler{max_episode_steps}-v0",
-        entry_point="gym_space.envs.kepler:KeplerContinuousEnv",
-        max_episode_steps=max_episode_steps,
-        kwargs={
-            "reward_value": reward_value,
-            "rad_penalty_C": rad_penalty_C,
-            "numerator_C": numerator_C,
-            "act_penalty_C": act_penalty_C,
-            "step_size": step_size,
-            "randomize": randomize,
-        },
-    )
-
     config["env_name"] = args.env + "-v0"
     # config["test_env_name"] = args.test_env + "-v0"
 
@@ -232,9 +134,10 @@ if __name__ == "__main__":
                 i,
             )
             c["log_dir"] = c["tensorboard_dir"] + "/logdir/"
+            env = gym.make(config["env_name"])
             c[
                 "tensorboard_comment"
-            ] = f"dense_reward5_actp{act_penalty_C}_numC{numerator_C}_step{step_size}"
+            ] = f"dense_reward5_actp{env.act_penalty_C}_numC{env.numerator_C}_step{env.step_size}"
             configs.append(c)
     if len(configs) == 1:
         train(configs[0], args)

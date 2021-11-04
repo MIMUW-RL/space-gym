@@ -21,8 +21,8 @@ gym.envs.register(
 
 if __name__ == "__main__":
     # env = gym.make(f"gym_space:DoNotCrashDiscrete-v0")
-    env = gym.make(f"gym_space:KeplerDiscrete-v0")
-    # env = gym.make(f"gym_space:GoalDiscrete-v0")
+    # env = gym.make(f"gym_space:KeplerDiscrete-v0")
+    env = gym.make(f"gym_space:GoalDiscrete-v0")
 
     # gym.envs.register(
     #    id='GoalDiscrete3-v0',

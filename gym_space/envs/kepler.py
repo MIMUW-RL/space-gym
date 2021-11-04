@@ -155,34 +155,34 @@ class KeplerEnv(SpaceshipEnv, ABC):
         dense_r = self._dense_reward5(pos_xy, vel_xy)
         return dense_r
 
-    # def _init_observation_space(self):
-    #     obs_low = [-1.0, -1.0, -1.0, -1.0, -np.inf, -np.inf, -1.0, 0, 0, 1]
-    #     obs_high = [1.0, 1.0, 1.0, 1.0, np.inf, np.inf, 1.0, 2 * np.pi, 0.7, 2]
-    #     if self.with_lidar:
-    #         # as normalized world is [-1, 1]^2, the highest distance between two points is 2 sqrt(2)
-    #         # (x, y) vector for each planet
-    #         obs_high += 2 * len(self.planets) * [2 * np.sqrt(2)]
-    #         if self.with_goal:
-    #             obs_high += 2 * [2 * np.sqrt(2)]
-    #     obs_high = np.array(obs_high)
-    #     self.observation_space = Box(low=-obs_high, high=obs_high)
+    def _init_observation_space(self):
+        obs_low = [-1.0, -1.0, -1.0, -1.0, -np.inf, -np.inf, -1.0, 0, 0, 1]
+        obs_high = [1.0, 1.0, 1.0, 1.0, np.inf, np.inf, 1.0, 2 * np.pi, 0.7, 2]
+        if self.with_lidar:
+            # as normalized world is [-1, 1]^2, the highest distance between two points is 2 sqrt(2)
+            # (x, y) vector for each planet
+            obs_high += 2 * len(self.planets) * [2 * np.sqrt(2)]
+            if self.with_goal:
+                obs_high += 2 * [2 * np.sqrt(2)]
+        obs_high = np.array(obs_high)
+        self.observation_space = Box(low=-obs_high, high=obs_high)
 
     def _make_observation(self):
         super()._make_observation()
         # add target orbit parameters into observation
-        # observation = self.observation
-        # self.observation = np.concatenate(
-        #     [
-        #         observation,
-        #         np.array(
-        #             [
-        #                 self.ref_orbit_angle,
-        #                 self.ref_orbit_eccentricity,
-        #                 self.ref_orbit_a,
-        #             ]
-        #         ),
-        #     ]
-        # )
+        observation = self.observation
+        self.observation = np.concatenate(
+            [
+                observation,
+                np.array(
+                    [
+                        self.ref_orbit_angle,
+                        self.ref_orbit_eccentricity,
+                        self.ref_orbit_a,
+                    ]
+                ),
+            ]
+        )
 
     def __init__(
         self,

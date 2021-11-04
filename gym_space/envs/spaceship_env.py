@@ -8,7 +8,7 @@ from gym_space.ship_params import ShipParams
 from gym_space.helpers import angle_to_unit_vector, vector_to_angle
 import numpy as np
 
-from gym_space.dynamic_model import ShipState
+from gym_space.dynamic_model import ShipState, ship_vector_field
 
 
 @dataclass
@@ -66,10 +66,6 @@ class SpaceshipEnv(gym.Env, ABC):
             self._renderer.reset(self.goal_pos)
         return self.observation
 
-    # define reward function
-    def reward(self, action, prev_state):
-        return self.rewards.reward(self.internal_state, action)
-
     def step(self, raw_action):
         assert self.action_space.contains(raw_action), raw_action
         action = np.array(self._translate_raw_action(raw_action))
@@ -93,6 +89,12 @@ class SpaceshipEnv(gym.Env, ABC):
         self._np_random, seed = gym.utils.seeding.np_random(seed)
         return [seed]
 
+    def vector_field(self, raw_action, state_vec: np.array = None):
+        if state_vec is None:
+            state_vec = self._ship_state._state_vec
+        action = np.array(self._translate_raw_action(raw_action))
+        return ship_vector_field(self.ship_params, self.planets, action, 0.0, state_vec)
+
     def _init_observation_space(self):
         obs_high = [1.0, 1.0, 1.0, 1.0, np.inf, np.inf, 1.0]
         if self.with_lidar:
@@ -101,7 +103,7 @@ class SpaceshipEnv(gym.Env, ABC):
             obs_high += 2 * len(self.planets) * [2 * np.sqrt(2)]
             if self.with_goal:
                 obs_high += 2 * [2 * np.sqrt(2)]
-        obs_high = np.array(obs_high)
+        obs_high = np.array(obs_high, dtype=np.float32)
         self.observation_space = Box(low=-obs_high, high=obs_high)
 
     def _make_observation(self):
@@ -204,7 +206,8 @@ class DiscreteSpaceshipEnv(SpaceshipEnv, ABC):
 
 class ContinuousSpaceshipEnv(SpaceshipEnv, ABC):
     def _init_action_space(self):
-        self.action_space = Box(low=-np.ones(2), high=np.ones(2))
+        ones = np.ones(2, dtype=np.float32)
+        self.action_space = Box(low=-ones, high=ones)
 
     @staticmethod
     def _translate_raw_action(raw_action: np.array) -> tuple[float, float]:

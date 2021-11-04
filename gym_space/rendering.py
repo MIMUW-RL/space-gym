@@ -36,14 +36,13 @@ class Renderer:
         self.goal_transform = None
         if self.goal_pos is not None:
             self._init_goal()
-        print(num_prev_pos_vis)
         self.prev_ship_pos = deque(maxlen=num_prev_pos_vis)
         self.prev_pos_color_decay = prev_pos_color_decay
         self.reset(self.goal_pos)
 
     def reset(self, goal_pos: np.array = None):
         self._move_planets()
-        self._move_goal(goal_pos)
+        self.move_goal(goal_pos)
         self.prev_ship_pos.clear()
 
     def render(self, ship_world_position: np.array, action: np.array, mode: str):
@@ -57,8 +56,8 @@ class Renderer:
             thrust_action, torque_action = action
         else:
             thrust_action = torque_action = 0
-        exhaust_color = 3 * [1 - thrust_action]
-        self.exhaust.set_color(*exhaust_color)
+        # hack to be able to set opacity
+        self.exhaust._color.vec4 = (0, 0, 0, thrust_action)
         self._torque_img_transform.scale = (-torque_action, np.abs(torque_action))
         self._draw_ship_trace()
         return self.viewer.render(mode == "rgb_array")
@@ -146,19 +145,19 @@ class Renderer:
         for planet, transform in zip(self.planets, self._planets_transforms):
             transform.set_translation(*self._world_to_screen(planet.center_pos))
 
-    def _move_goal(self, goal_pos: Union[np.array, None]):
+    def move_goal(self, goal_pos: Union[np.array, None]):
         assert (goal_pos is None) == (self.goal_pos is None)
         self.goal_pos = goal_pos
         if self.goal_pos is not None:
             self.goal_transform.set_translation(*self._world_to_screen(self.goal_pos))
 
     def _draw_ship_trace(self):
-        color_diff = 1.0
+        opacity = 1.0
         for i in range(1, len(self.prev_ship_pos)):
             line = rendering.Line(self.prev_ship_pos[-i], self.prev_ship_pos[-i - 1])
-            color = 3 * [1 - color_diff]
-            line.set_color(*color)
-            color_diff *= self.prev_pos_color_decay
+            # hack to be able to set opacity
+            line._color.vec4 = (0, 0, 0, opacity)
+            opacity *= self.prev_pos_color_decay
             self.viewer.add_onetime(line)
 
     def _world_to_screen(self, world_pos: np.array):

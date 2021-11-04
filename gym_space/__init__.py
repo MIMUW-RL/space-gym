@@ -1,6 +1,6 @@
 from gym.envs.registration import register
 
-# Orbit
+# Do not crash
 
 register(
     id="DoNotCrashDiscrete-v0",
@@ -20,23 +20,24 @@ register(
 register(
     id="GoalDiscrete-v0",
     entry_point="gym_space.envs:GoalDiscreteEnv",
-    max_episode_steps=300,
+    max_episode_steps=1000,
 )
 
 register(
     id="GoalContinuous-v0",
     entry_point="gym_space.envs:GoalContinuousEnv",
-    max_episode_steps=300,
+    max_episode_steps=1000,
 )
 
 # selection of Kepler orbit problem environments
 
 step_size = 0.1
+max_episode_steps = 500
 
 register(
     id="KeplerCircleOrbit-v0",
     entry_point="gym_space.envs:KeplerContinuousEnv",
-    max_episode_steps=500,
+    max_episode_steps=max_episode_steps,
     kwargs={
         "reward_value": 0,
         "rad_penalty_C": 2,
@@ -53,7 +54,7 @@ register(
 register(
     id="KeplerEllipseEasy-v0",
     entry_point="gym_space.envs:KeplerContinuousEnv",
-    max_episode_steps=500,
+    max_episode_steps=max_episode_steps,
     kwargs={
         "reward_value": 0,
         "rad_penalty_C": 2,
@@ -70,7 +71,7 @@ register(
 register(
     id="KeplerEllipseHard-v0",
     entry_point="gym_space.envs:KeplerContinuousEnv",
-    max_episode_steps=500,
+    max_episode_steps=max_episode_steps,
     kwargs={
         "reward_value": 0,
         "rad_penalty_C": 2,
@@ -87,7 +88,7 @@ register(
 register(
     id="KeplerRandomOrbits-v0",
     entry_point="gym_space.envs:KeplerContinuousEnv",
-    max_episode_steps=500,
+    max_episode_steps=max_episode_steps,
     kwargs={
         "reward_value": 0,
         "rad_penalty_C": 2,

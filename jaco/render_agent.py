@@ -5,7 +5,6 @@ import copy
 import yaml
 import gym
 import time
-import neptune
 from itertools import product
 from rltoolkit import TD3
 import matplotlib.pyplot as plt
@@ -89,14 +88,32 @@ gym.envs.register(
     },
 )
 
+
+gym.envs.register(
+    id="KeplerEllipseEasyTest-v0",
+    entry_point="gym_space.envs:KeplerContinuousEnv",
+    max_episode_steps=1000,
+    kwargs={
+        "reward_value": 0,
+        "rad_penalty_C": 2,
+        "numerator_C": 0.01,
+        "act_penalty_C": 0.5,
+        "step_size": 0.1,
+        "randomize": False,
+        "ref_orbit_a": 1.2,
+        "ref_orbit_eccentricity": 0.5,
+        "ref_orbit_angle": 0.8,
+    },
+)
+
 # model_path = "models/Jun30_13-12-28.489Orbit-v0-g0.99-spe5000-TD3-a_lr0.0003-rf0-noi0.2-obs_normFalse-pi_ufr2.pkl"
 # ENV_NAME = "Orbit-v0"
 # model_path = "models/Jul05_22-42-01.624GoalContinuous2-v0-g0.99-spe5000-TD3-a_lr0.0003-rf0-noi0.2-obs_normFalse-pi_ufr2.pkl"
 # ENV_NAME = "GoalContinuous2-v0"
 
 # model_path = "models/Jul15_18-21-47.854Kepler500-v0-g0.99-spe5000-TD3-a_lr0.0003-rf0-noi0.2-obs_normFalse-pi_ufr2_env_vt0.1_rt0.1.pkl"
-model_path = "models/Aug05_13-04-34.125KeplerEllipseHard-v0-g0.99-spe5000-TD3-a_lr0.0003-bu_s5000000-rf0-noi0.2-obs_normFalse-pi_ufr2_dense_reward5_actp0.5_numC0.01_step0.1.pkl"
-ENV_NAME = "Kepler-v0"
+model_path = "agents4vids/KeplerEllipseEasy-v0.pkl"
+ENV_NAME = "KeplerEllipseEasyTest-v0"
 
 td3 = TD3(
     env_name=ENV_NAME,
@@ -105,7 +122,7 @@ td3 = TD3(
 
 td3.load(model_path)
 
-# ret = td3.test(5)
-# print(ret)
+ret = td3.test(5)
+print(ret)
 
 visualise_episode_vanilla(td3)

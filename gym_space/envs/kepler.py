@@ -45,7 +45,7 @@ class KeplerEnv(SpaceshipEnv, ABC):
         return np.sqrt(a * a * (1 - ecc * ecc))
 
     def _c(self, a, b):
-        """distance of a focal point from the ellipse centre """
+        """distance of a focal point from the ellipse centre"""
         return np.sqrt(a * a - b * b)
 
     def _rotate(self, pos_xy, alpha):
@@ -96,7 +96,7 @@ class KeplerEnv(SpaceshipEnv, ABC):
         return np.linalg.norm(pos_wz)
 
     def _orbit_target_rad(self, pos_xy, ref_angle, ref_a, ecc) -> np.array:
-        """ get the radius for the current angle theta for the orbit having given ecc."""
+        """get the radius for the current angle theta for the orbit having given ecc."""
         a = ref_a
         b = self._b(a, ecc)
         c = self._c(a, b)
@@ -157,7 +157,9 @@ class KeplerEnv(SpaceshipEnv, ABC):
 
     def _init_observation_space(self):
         obs_low = [-1.0, -1.0, -1.0, -1.0, -np.inf, -np.inf, -1.0, 0, 0, 1]
+        #obs_low = [-1.0, -1.0, -1.0, -1.0, -np.inf, -np.inf, -1.0]
         obs_high = [1.0, 1.0, 1.0, 1.0, np.inf, np.inf, 1.0, 2 * np.pi, 0.7, 2]
+        #obs_high = [1.0, 1.0, 1.0, 1.0, np.inf, np.inf, 1.0]
         if self.with_lidar:
             # as normalized world is [-1, 1]^2, the highest distance between two points is 2 sqrt(2)
             # (x, y) vector for each planet
@@ -172,16 +174,16 @@ class KeplerEnv(SpaceshipEnv, ABC):
         # add target orbit parameters into observation
         observation = self.observation
         self.observation = np.concatenate(
-            [
-                observation,
-                np.array(
-                    [
-                        self.ref_orbit_angle,
-                        self.ref_orbit_eccentricity,
-                        self.ref_orbit_a,
-                    ]
-                ),
-            ]
+           [
+               observation,
+               np.array(
+                   [
+                       self.ref_orbit_angle,
+                       self.ref_orbit_eccentricity,
+                       self.ref_orbit_a,
+                   ]
+               ),
+           ]
         )
 
     def __init__(

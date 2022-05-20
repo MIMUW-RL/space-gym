@@ -133,7 +133,6 @@ class GoalEnv(SpaceshipEnv, ABC):
             + self.goal_vel_reward_scale * self._goal_vel_reward()
             + self.safety_reward_scale * self._safety_reward()
         )
-        print(self._safety_reward())
         threshold = 0.9 if self._hexagonal_tiling._debug else self.goal_radius
         if np.linalg.norm(self.goal_pos - self._ship_state.pos_xy) < threshold:
             reward += self.goal_sparse_reward

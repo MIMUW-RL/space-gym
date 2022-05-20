@@ -1,7 +1,7 @@
 from abc import ABC
 import numpy as np
 from gym_space.planet import Planet
-from gym_space.ship_params import ShipParams
+from gym_space.ship_params import ShipParams, Steering
 from gym_space import helpers
 from gym_space.hexagonal_tiling import HexagonalTiling
 from .spaceship_env import SpaceshipEnv, DiscreteSpaceshipEnv, ContinuousSpaceshipEnv
@@ -11,14 +11,17 @@ WORLD_SIZE = 3.0
 
 class GoalEnv(SpaceshipEnv, ABC):
     _total_planets_mass = 1e9
+    _safety_thr = 0.5
 
     def __init__(
         self,
         n_planets: int = 2,
-        survival_reward_scale: float = 0.0,
+        ship_steering: int = 0,
+        ship_moi: float = 0.01,
+        survival_reward_scale: float = 0.25,
         goal_vel_reward_scale: float = 0.75,
-        safety_reward_scale: float = 0.25,
-        goal_sparse_reward: float = 10.0,
+        safety_reward_scale: float = 0.0,
+        goal_sparse_reward: float = 100.0,
         renderer_kwargs: dict = None,
     ):
         self.n_planets = n_planets
@@ -31,13 +34,8 @@ class GoalEnv(SpaceshipEnv, ABC):
             self._init_many_planets(n_planets)
 
         planets_mass = self._total_planets_mass / n_planets
-        planets = [
-            Planet(mass=planets_mass, radius=self.planets_radius)
-            for _ in range(self.n_planets)
-        ]
-        ship = ShipParams(
-            mass=1, moi=0.05, max_engine_force=0.3, max_thruster_force=0.05
-        )
+        planets = [Planet(mass=planets_mass, radius=self.planets_radius) for _ in range(self.n_planets)]
+        ship = ShipParams(Steering(ship_steering), mass=1, moi=ship_moi, max_engine_force=0.5, max_thruster_force=0.05)
 
         self.survival_reward_scale = survival_reward_scale
         self.goal_vel_reward_scale = goal_vel_reward_scale
@@ -49,7 +47,7 @@ class GoalEnv(SpaceshipEnv, ABC):
             planets=planets,
             world_size=WORLD_SIZE,
             step_size=0.07,
-            max_abs_vel_angle=5.0,
+            max_abs_vel_angle=6.0,
             vel_xy_std=np.ones(2),
             with_lidar=True,
             with_goal=True,
@@ -58,7 +56,8 @@ class GoalEnv(SpaceshipEnv, ABC):
 
     def seed(self, seed=None):
         super().seed(seed)
-        self._hexagonal_tiling.seed(seed)
+        if self._hexagonal_tiling is not None:
+            self._hexagonal_tiling.seed(seed)
 
     def _init_one_planet(self):
         self.planets_radius = 0.8
@@ -86,7 +85,6 @@ class GoalEnv(SpaceshipEnv, ABC):
         planet_world_center_dist = self._np_random.uniform(0, max_pos - 2 * max(self.ship_radius, self.goal_radius))
         planet_world_center_angle = self._np_random.uniform(0, 2 * np.pi)
         planet_pos = helpers.angle_to_unit_vector(planet_world_center_angle) * planet_world_center_dist
-
         ship_pos = self._sample_position_outside_one_planet(planet_pos, self.ship_radius)
         goal_pos = self._sample_position_outside_one_planet(planet_pos, self.goal_radius)
 
@@ -117,9 +115,11 @@ class GoalEnv(SpaceshipEnv, ABC):
 
     def _reset(self):
         ship_pos, *planets_pos = self._sample_positions()
-        self._resample_goal()
+
         for pos, planet in zip(planets_pos, self.planets):
             planet.center_pos = pos
+        self._resample_goal()
+
         ship_angle = self._np_random.uniform(0, 2 * np.pi)
         velocities_xy = self._np_random.standard_normal(2) * 0.07
         max_abs_ang_vel = 0.7 * self.max_abs_vel_angle
@@ -129,10 +129,11 @@ class GoalEnv(SpaceshipEnv, ABC):
 
     def _reward(self) -> float:
         reward = (
-                self.survival_reward_scale +
-                self.goal_vel_reward_scale * self._goal_vel_reward() +
-                self.safety_reward_scale * self._safety_reward()
+            self.survival_reward_scale
+            + self.goal_vel_reward_scale * self._goal_vel_reward()
+            + self.safety_reward_scale * self._safety_reward()
         )
+        print(self._safety_reward())
         threshold = 0.9 if self._hexagonal_tiling._debug else self.goal_radius
         if np.linalg.norm(self.goal_pos - self._ship_state.pos_xy) < threshold:
             reward += self.goal_sparse_reward
@@ -160,7 +161,7 @@ class GoalEnv(SpaceshipEnv, ABC):
         vel_x, vel_y = self._ship_state.vel_xy
         if np.isclose(vel_x, 0):
             # TODO
-            return 1
+            return 0
         a = vel_y / vel_x
         ship_x, ship_y = self._ship_state.pos_xy
         b = ship_y - a * ship_x
@@ -175,10 +176,10 @@ class GoalEnv(SpaceshipEnv, ABC):
             #
             # a_ x^2 + b_ x + c_ = 0
             # where
-            a_ = a**2 + 1
+            a_ = a ** 2 + 1
             b_ = 2 * a * (b - y0) - 2 * x0
-            c_ = x0**2 - r**2 + (b - y0)**2
-            delta = b_**2 - 4 * a_ * c_
+            c_ = x0 ** 2 - r ** 2 + (b - y0) ** 2
+            delta = b_ ** 2 - 4 * a_ * c_
             if delta < 0:
                 continue
             sqrt_delta = np.sqrt(delta)
@@ -188,28 +189,32 @@ class GoalEnv(SpaceshipEnv, ABC):
                 if np.sign(x_sol - ship_x) != np.sign(vel_x):
                     continue
                 y_sol = a * x_sol + b
-                dist = np.sqrt((ship_x - x_sol)**2 + (ship_y - y_sol)**2)
+                dist = np.sqrt((ship_x - x_sol) ** 2 + (ship_y - y_sol) ** 2)
                 min_dist = min(min_dist, dist)
 
         # Find intersections with world boundary
         s = self.world_size / 2
         if vel_x > 0 and -s <= (y := a * s + b) <= s:
-            dist = np.sqrt((ship_x - s)**2 + (ship_y - y)**2)
+            dist = np.sqrt((ship_x - s) ** 2 + (ship_y - y) ** 2)
             min_dist = min(min_dist, dist)
-        if vel_x < 0 and -s <= (y := - a * s + b) <= s:
-            dist = np.sqrt((ship_x + s)**2 + (ship_y - y)**2)
+        if vel_x < 0 and -s <= (y := -a * s + b) <= s:
+            dist = np.sqrt((ship_x + s) ** 2 + (ship_y - y) ** 2)
             min_dist = min(min_dist, dist)
         if a != 0:
             if vel_y > 0 and -s <= (x := (s - b) / a) <= s:
-                dist = np.sqrt((ship_x - x)**2 + (ship_y - s)**2)
+                dist = np.sqrt((ship_x - x) ** 2 + (ship_y - s) ** 2)
                 min_dist = min(min_dist, dist)
-            if vel_y < 0 and -s <= (x := (- s - b) / a) <= s:
-                dist = np.sqrt((ship_x - x)**2 + (ship_y + s)**2)
+            if vel_y < 0 and -s <= (x := (-s - b) / a) <= s:
+                dist = np.sqrt((ship_x - x) ** 2 + (ship_y + s) ** 2)
                 min_dist = min(min_dist, dist)
 
-        time_to_crash = min_dist / np.linalg.norm(self._ship_state.vel_xy)
-        reward = np.tanh(time_to_crash / 5)
-        return reward
+        if min_dist < self._safety_thr:
+            return -1.0
+        else:
+            return 0.0
+        # time_to_crash = min_dist / np.linalg.norm(self._ship_state.vel_xy)
+        # reward = np.tanh(time_to_crash / 5)
+
 
 class GoalDiscreteEnv(GoalEnv, DiscreteSpaceshipEnv):
     pass

@@ -24,9 +24,18 @@ register(
 )
 
 register(
-    id="GoalContinuous-v0",
+    id="GoalContinuousL1-v0",
     entry_point="gym_space.envs:GoalContinuousEnv",
-    max_episode_steps=1000,
+    max_episode_steps=500,
+    kwargs={
+        "n_planets": 2,
+        "ship_steering": 1,
+        "ship_moi": 0.01,
+        "survival_reward_scale": 0.25,
+        "goal_vel_reward_scale": 0.25,
+        "safety_reward_scale": 0.25,
+        "goal_sparse_reward": 50.0,
+    },
 )
 
 # selection of Kepler orbit problem environments

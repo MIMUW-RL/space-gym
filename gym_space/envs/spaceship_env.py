@@ -81,7 +81,9 @@ class SpaceshipEnv(gym.Env, ABC):
 
             self._renderer = Renderer(self.planets, self.world_size, self.goal_pos, **self.renderer_kwargs)
 
-        return self._renderer.render(self._ship_state.full_pos, self.last_action, mode)
+        return self._renderer.render(
+            self._ship_state.full_pos, self.last_action, self.goal_lidar, self.planets_lidars, mode
+        )
 
     def seed(self, seed=None):
         self._np_random, seed = gym.utils.seeding.np_random(seed)
@@ -108,7 +110,7 @@ class SpaceshipEnv(gym.Env, ABC):
         # make sure that x and y positions are between -1 and 1
         obs_pos_xy = self._ship_state.pos_xy / self.world_size
         # normalize translational velocity
-        obs_vel_xy = self._ship_state.vel_xy / self.vel_xy_std
+        obs_vel_xy = self._ship_state.vel_xy  # / self.vel_xy_std
         # make sure that angular velocity is between -1 and 1
         obs_vel_angle = self._ship_state.vel_angle / self.max_abs_vel_angle
         # represent angle as cosine and sine
@@ -123,14 +125,9 @@ class SpaceshipEnv(gym.Env, ABC):
         self.observation = np.concatenate(observation)
 
     def _create_lidar_vector(self, obj_pos: np.array, obj_radius: float = 0.0) -> np.array:
-        """Create vector from ship to some object.
-
-        Lidar's point of view is ship's point of view.
-        It means that the returned vector is in coordinate system
-        such that ship's engine exhaust is pointing downwards.
-        """
+        """Create vector from ship to some object."""
         ship_center_obj_vec = obj_pos - self._ship_state.pos_xy
-        ship_obj_angle = vector_to_angle(ship_center_obj_vec) - np.pi / 2 - self._ship_state.pos_angle
+        ship_obj_angle = vector_to_angle(ship_center_obj_vec)  # - np.pi / 2 - self._ship_state.pos_angle
         ship_obj_angle %= 2 * np.pi
         scale = (np.linalg.norm(ship_center_obj_vec) - obj_radius) * 2 / self.world_size
         return angle_to_unit_vector(ship_obj_angle) * scale

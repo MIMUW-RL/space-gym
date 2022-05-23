@@ -28,7 +28,7 @@ if __name__ == "__main__":
         id="GoalDiscrete3-v0",
         entry_point="gym_space.envs.goal:GoalDiscreteEnv",
         kwargs={
-            "n_planets": 5,
+            "n_planets": 2,
             "ship_steering": 1,
             "ship_moi": 0.01,
             "survival_reward_scale": 0.25,
@@ -104,6 +104,7 @@ if __name__ == "__main__":
                 skip -= 1
 
             obser, r, done, info = env.step(a)
+            print(obser)
             obser_max = np.maximum(np.abs(obser), obser_max)
             total_reward += r
             print(f"step {k} total rew={total_reward}")

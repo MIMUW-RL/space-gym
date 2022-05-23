@@ -46,9 +46,9 @@ register(
         "n_planets": 3,
         "ship_steering": 1,
         "ship_moi": 0.01,
-        "survival_reward_scale": 0.25,
-        "goal_vel_reward_scale": 0.25,
-        "safety_reward_scale": 0.0,
+        "survival_reward_scale": 0.5,
+        "goal_vel_reward_scale": 0.5,
+        "safety_reward_scale": 0.5,
         "goal_sparse_reward": 50.0,
     },
 )

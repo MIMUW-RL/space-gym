@@ -42,6 +42,14 @@ class GoalEnv(SpaceshipEnv, ABC):
         self.goal_sparse_reward = goal_sparse_reward
         self.safety_reward_scale = safety_reward_scale
 
+        print("current env args:")
+        print(f"n_planets={self.n_planets}")
+        print(f"steering={ship.steering}")
+        print(f"survival_reward_scale={self.survival_reward_scale}")
+        print(f"goal_vel_reward_scale={self.goal_vel_reward_scale}")
+        print(f"safety_reward_scale={self.safety_reward_scale}")
+        print(f"goal_sparse_reward={self.goal_sparse_reward}")
+
         super().__init__(
             ship_params=ship,
             planets=planets,
@@ -131,7 +139,7 @@ class GoalEnv(SpaceshipEnv, ABC):
         reward = (
             self.survival_reward_scale
             + self.goal_vel_reward_scale * self._goal_vel_reward()
-            + self.safety_reward_scale * self._safety_reward()
+            + self.safety_reward_scale * self._safety_reward_simple()
         )
         threshold = 0.9 if self._hexagonal_tiling._debug else self.goal_radius
         if np.linalg.norm(self.goal_pos - self._ship_state.pos_xy) < threshold:
@@ -155,6 +163,27 @@ class GoalEnv(SpaceshipEnv, ABC):
         assert 0.0 <= r <= 1
         return r
 
+    def _safety_reward_simple(self) -> float:
+        THR = 0.2
+        sum_safety = 0
+
+        ship_x, ship_y = self._ship_state.pos_xy
+        for planet in self.planets:
+            x0, y0 = planet.center_pos
+            r = planet.radius
+            dist = np.sqrt((ship_x - x0) ** 2 + (ship_y - y0) ** 2)
+            if (dist - r) < THR:
+                sum_safety -= 1.0
+                sum_safety -= 5 * (THR - (dist - r))
+
+        s = self.world_size / 2
+        if np.abs(ship_x) > s - THR:
+            sum_safety -= 1.0
+        if np.abs(ship_y) > s - THR:
+            sum_safety -= 1.0
+
+        return sum_safety
+
     def _safety_reward(self) -> float:
         """Give reward for the time it would take to crash if velocity didn't change"""
         vel_x, vel_y = self._ship_state.vel_xy
@@ -175,10 +204,10 @@ class GoalEnv(SpaceshipEnv, ABC):
             #
             # a_ x^2 + b_ x + c_ = 0
             # where
-            a_ = a ** 2 + 1
+            a_ = a**2 + 1
             b_ = 2 * a * (b - y0) - 2 * x0
-            c_ = x0 ** 2 - r ** 2 + (b - y0) ** 2
-            delta = b_ ** 2 - 4 * a_ * c_
+            c_ = x0**2 - r**2 + (b - y0) ** 2
+            delta = b_**2 - 4 * a_ * c_
             if delta < 0:
                 continue
             sqrt_delta = np.sqrt(delta)

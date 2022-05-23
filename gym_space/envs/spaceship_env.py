@@ -110,14 +110,15 @@ class SpaceshipEnv(gym.Env, ABC):
 
     def _make_observation(self):
         # make sure that x and y positions are between -1 and 1
-        obs_pos_xy = self._ship_state.pos_xy / self.world_size
+        obs_pos_xy = self._ship_state.pos_xy  # / self.world_size
         # normalize translational velocity
         obs_vel_xy = self._ship_state.vel_xy  # / self.vel_xy_std
         # make sure that angular velocity is between -1 and 1
-        obs_vel_angle = self._ship_state.vel_angle / self.max_abs_vel_angle
+        obs_vel_angle = self._ship_state.vel_angle  # / self.max_abs_vel_angle
         # represent angle as cosine and sine
         angle = self._ship_state.pos_angle
-        angle_repr = np.array([np.cos(angle), np.sin(angle)])
+        angle_repr = angle_to_unit_vector(angle)
+        # angle_repr = np.array([np.cos(angle), np.sin(angle)])
         observation = [obs_pos_xy, angle_repr, obs_vel_xy, np.array([obs_vel_angle])]
 
         if self.with_lidar:

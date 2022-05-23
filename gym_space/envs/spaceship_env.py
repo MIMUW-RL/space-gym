@@ -79,7 +79,9 @@ class SpaceshipEnv(gym.Env, ABC):
         if self._renderer is None:
             from gym_space.rendering import Renderer
 
-            self._renderer = Renderer(self.planets, self.world_size, self.goal_pos, **self.renderer_kwargs)
+            self._renderer = Renderer(
+                self.planets, self.world_size, self.goal_pos, debug_mode=True, **self.renderer_kwargs
+            )
 
         return self._renderer.render(
             self._ship_state.full_pos, self.last_action, self.goal_lidar, self.planets_lidars, mode
@@ -126,6 +128,7 @@ class SpaceshipEnv(gym.Env, ABC):
 
     def _create_lidar_vector(self, obj_pos: np.array, obj_radius: float = 0.0) -> np.array:
         """Create vector from ship to some object."""
+
         ship_center_obj_vec = obj_pos - self._ship_state.pos_xy
         ship_obj_angle = vector_to_angle(ship_center_obj_vec)  # - np.pi / 2 - self._ship_state.pos_angle
         ship_obj_angle %= 2 * np.pi
@@ -136,7 +139,11 @@ class SpaceshipEnv(gym.Env, ABC):
     def planets_lidars(self):
         if not self.with_lidar:
             return None
-        return self.observation[-2 * len(self.planets) :].reshape(-1, 2)
+        if self.with_lidar and not self.with_goal:
+            return self.observation[-2 * len(self.planets) :].reshape(-1, 2)
+        if self.with_lidar and self.with_goal:
+            # the last two observations of state vec is the goal lidar
+            return self.observation[-2 * (len(self.planets) + 1) : -2].reshape(-1, 2)
 
     @property
     def goal_lidar(self):

@@ -19,6 +19,7 @@ class GoalEnv(SpaceshipEnv, ABC):
         goal_vel_reward_scale: float,
         safety_reward_scale: float,
         goal_sparse_reward: float,
+        danger_zone: float = 0.25,
         survival_reward_scale: float = 0.0,
         n_planets: int = 2,
         ship_steering: int = 0,
@@ -28,6 +29,8 @@ class GoalEnv(SpaceshipEnv, ABC):
     ):
         self.n_planets = n_planets
         self.n_objects = self.n_planets + 2
+
+        self.danger_zone = danger_zone
 
         self._hexagonal_tiling = None
         if self.n_planets == 1:
@@ -174,7 +177,7 @@ class GoalEnv(SpaceshipEnv, ABC):
         return r
 
     def _safety_reward_simple(self) -> float:
-        THR = 0.2
+        THR = self.danger_zone
         sum_safety = 0
 
         ship_x, ship_y = self._ship_state.pos_xy
@@ -196,7 +199,7 @@ class GoalEnv(SpaceshipEnv, ABC):
 
     def _safety_reward_simple2(self) -> float:
         """the negative reward only if approaching the planet"""
-        THR = 0.25
+        THR = self.danger_zone
         sum_safety = 0
 
         ship_x, ship_y = self._ship_state.pos_xy

@@ -28,13 +28,14 @@ if __name__ == "__main__":
         id="GoalDiscrete3-v0",
         entry_point="gym_space.envs.goal:GoalDiscreteEnv",
         kwargs={
-            "n_planets": 4,
+            "n_planets": 3,
             "ship_steering": 1,
             "ship_moi": 0.01,
-            "survival_reward_scale": 0.25,
-            "goal_vel_reward_scale": 0.25,
-            "safety_reward_scale": 0.25,
-            "goal_sparse_reward": 50.0,
+            "survival_reward_scale": 0.0,
+            "goal_vel_reward_scale": 1.0,
+            "safety_reward_scale": 2.0,
+            "goal_sparse_reward": 10.0,
+            "max_engine_force": 0.4,
         },
     )
 

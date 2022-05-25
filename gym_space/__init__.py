@@ -46,10 +46,11 @@ register(
         "n_planets": 3,
         "ship_steering": 1,
         "ship_moi": 0.01,
-        "survival_reward_scale": 0.5,
-        "goal_vel_reward_scale": 0.5,
-        "safety_reward_scale": 0.5,
-        "goal_sparse_reward": 50.0,
+        "survival_reward_scale": 0.0,
+        "goal_vel_reward_scale": 1.0,
+        "safety_reward_scale": 2.0,
+        "goal_sparse_reward": 2.0,
+        "max_engine_force": 0.4,
     },
 )
 

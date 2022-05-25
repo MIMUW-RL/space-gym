@@ -111,6 +111,7 @@ def make_step(
     # noinspection PyTypeChecker
     ode_solution = solve_ivp(
         partial(ship_vector_field, ship_params, planets, action),
+        method="RK45",
         t_span=(0, step_size),
         y0=state_vec,
         events=termination_events,

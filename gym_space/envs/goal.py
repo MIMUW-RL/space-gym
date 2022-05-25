@@ -12,16 +12,18 @@ WORLD_SIZE = 3.0
 class GoalEnv(SpaceshipEnv, ABC):
     _total_planets_mass = 1e9
     _safety_thr = 0.5
+    _distance_fctr = 100
 
     def __init__(
         self,
+        goal_vel_reward_scale: float,
+        safety_reward_scale: float,
+        goal_sparse_reward: float,
+        survival_reward_scale: float = 0.0,
         n_planets: int = 2,
         ship_steering: int = 0,
         ship_moi: float = 0.01,
-        survival_reward_scale: float = 0.25,
-        goal_vel_reward_scale: float = 0.75,
-        safety_reward_scale: float = 0.0,
-        goal_sparse_reward: float = 100.0,
+        max_engine_force=0.4,
         renderer_kwargs: dict = None,
     ):
         self.n_planets = n_planets
@@ -35,7 +37,9 @@ class GoalEnv(SpaceshipEnv, ABC):
 
         planets_mass = self._total_planets_mass / n_planets
         planets = [Planet(mass=planets_mass, radius=self.planets_radius) for _ in range(self.n_planets)]
-        ship = ShipParams(Steering(ship_steering), mass=1, moi=ship_moi, max_engine_force=0.5, max_thruster_force=0.05)
+        ship = ShipParams(
+            Steering(ship_steering), mass=1, moi=ship_moi, max_engine_force=max_engine_force, max_thruster_force=0.05
+        )
 
         self.survival_reward_scale = survival_reward_scale
         self.goal_vel_reward_scale = goal_vel_reward_scale
@@ -138,14 +142,20 @@ class GoalEnv(SpaceshipEnv, ABC):
     def _reward(self) -> float:
         reward = (
             self.survival_reward_scale
-            + self.goal_vel_reward_scale * self._goal_vel_reward()
-            + self.safety_reward_scale * self._safety_reward_simple()
+            + self.goal_vel_reward_scale * self._goal_vel_reward2()
+            + self.safety_reward_scale * self._safety_reward_simple2()
         )
+
         threshold = 0.9 if self._hexagonal_tiling._debug else self.goal_radius
         if np.linalg.norm(self.goal_pos - self._ship_state.pos_xy) < threshold:
             reward += self.goal_sparse_reward
             self._resample_goal()
         return reward
+
+    def _goal_vel_reward2(self) -> float:
+        current_dist = np.linalg.norm(self.goal_pos - self._ship_state.pos_xy)
+        last_dist = np.linalg.norm(self.goal_pos - self.last_xy)
+        return (last_dist - current_dist) * self._distance_fctr
 
     def _goal_vel_reward(self) -> float:
         ship_goal_vec = self.goal_pos - self._ship_state.pos_xy
@@ -181,6 +191,25 @@ class GoalEnv(SpaceshipEnv, ABC):
             sum_safety -= 1.0
         if np.abs(ship_y) > s - THR:
             sum_safety -= 1.0
+
+        return sum_safety
+
+    def _safety_reward_simple2(self) -> float:
+        """the negative reward only if approaching the planet"""
+        THR = 0.25
+        sum_safety = 0
+
+        ship_x, ship_y = self._ship_state.pos_xy
+        prev_x, prev_y = self.last_xy
+        for planet in self.planets:
+            x0, y0 = planet.center_pos
+            r = planet.radius
+            dist = np.sqrt((ship_x - x0) ** 2 + (ship_y - y0) ** 2)
+            if (dist - r) < THR:
+                prev_dist = np.sqrt((prev_x - x0) ** 2 + (prev_y - y0) ** 2)
+                if prev_dist > dist:
+                    # sum_safety -= 1.0
+                    sum_safety -= self._distance_fctr * (prev_dist - dist)
 
         return sum_safety
 
@@ -236,12 +265,9 @@ class GoalEnv(SpaceshipEnv, ABC):
                 dist = np.sqrt((ship_x - x) ** 2 + (ship_y + s) ** 2)
                 min_dist = min(min_dist, dist)
 
-        if min_dist < self._safety_thr:
-            return -1.0
-        else:
-            return 0.0
-        # time_to_crash = min_dist / np.linalg.norm(self._ship_state.vel_xy)
-        # reward = np.tanh(time_to_crash / 5)
+        time_to_crash = min_dist / np.linalg.norm(self._ship_state.vel_xy)
+        reward = np.tanh(time_to_crash / 5)
+        return reward
 
 
 class GoalDiscreteEnv(GoalEnv, DiscreteSpaceshipEnv):

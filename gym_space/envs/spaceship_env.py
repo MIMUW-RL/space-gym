@@ -39,6 +39,7 @@ class SpaceshipEnv(gym.Env, ABC):
 
     observation: np.array = field(init=False, default=None)
     last_action: np.array = field(init=False, default=None)
+    last_xy: np.array = field(init=False, default=None)
     goal_pos: np.array = field(init=False, default=None)
 
     metadata = {
@@ -70,6 +71,7 @@ class SpaceshipEnv(gym.Env, ABC):
         assert self.action_space.contains(raw_action), raw_action
         action = np.array(self._translate_raw_action(raw_action))
         self.last_action = action
+        self.last_xy = self._ship_state.pos_xy
         done = self._ship_state.step(action, self.step_size)
         self._make_observation()
         reward = self._reward()
@@ -125,6 +127,7 @@ class SpaceshipEnv(gym.Env, ABC):
             observation += [self._create_lidar_vector(p.center_pos, p.radius) for p in self.planets]
             if self.with_goal:
                 observation += [self._create_lidar_vector(self.goal_pos)]
+
         self.observation = np.concatenate(observation)
 
     def _create_lidar_vector(self, obj_pos: np.array, obj_radius: float = 0.0) -> np.array:

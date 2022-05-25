@@ -48,8 +48,8 @@ register(
         "ship_moi": 0.01,
         "survival_reward_scale": 0.0,
         "goal_vel_reward_scale": 1.0,
-        "safety_reward_scale": 2.0,
-        "goal_sparse_reward": 2.0,
+        "safety_reward_scale": 1.0,
+        "goal_sparse_reward": 10.0,
         "max_engine_force": 0.4,
     },
 )

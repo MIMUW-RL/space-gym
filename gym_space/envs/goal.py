@@ -1,4 +1,5 @@
 from abc import ABC
+from fileinput import close
 import numpy as np
 from gym_space.planet import Planet
 from gym_space.ship_params import ShipParams, Steering
@@ -19,6 +20,7 @@ class GoalEnv(SpaceshipEnv, ABC):
         goal_vel_reward_scale: float,
         safety_reward_scale: float,
         goal_sparse_reward: float,
+        fixed_position: bool = False,
         danger_zone: float = 0.25,
         survival_reward_scale: float = 0.0,
         n_planets: int = 2,
@@ -148,7 +150,6 @@ class GoalEnv(SpaceshipEnv, ABC):
             + self.goal_vel_reward_scale * self._goal_vel_reward2()
             + self.safety_reward_scale * self._safety_reward_simple2()
         )
-
         threshold = 0.9 if self._hexagonal_tiling._debug else self.goal_radius
         if np.linalg.norm(self.goal_pos - self._ship_state.pos_xy) < threshold:
             reward += self.goal_sparse_reward
@@ -158,7 +159,9 @@ class GoalEnv(SpaceshipEnv, ABC):
     def _goal_vel_reward2(self) -> float:
         current_dist = np.linalg.norm(self.goal_pos - self._ship_state.pos_xy)
         last_dist = np.linalg.norm(self.goal_pos - self.last_xy)
-        return (last_dist - current_dist) * self._distance_fctr
+        if last_dist > current_dist:
+            return min((last_dist - current_dist) * self._distance_fctr, 1.0)
+        return 0.0
 
     def _goal_vel_reward(self) -> float:
         ship_goal_vec = self.goal_pos - self._ship_state.pos_xy
@@ -198,21 +201,27 @@ class GoalEnv(SpaceshipEnv, ABC):
         return sum_safety
 
     def _safety_reward_simple2(self) -> float:
-        """the negative reward only if approaching the planet"""
+        """the negative reward only if approaching the closest planet"""
         THR = self.danger_zone
         sum_safety = 0
 
         ship_x, ship_y = self._ship_state.pos_xy
         prev_x, prev_y = self.last_xy
+        closest = None
+        mindist = np.inf
         for planet in self.planets:
             x0, y0 = planet.center_pos
-            r = planet.radius
             dist = np.sqrt((ship_x - x0) ** 2 + (ship_y - y0) ** 2)
-            if (dist - r) < THR:
-                prev_dist = np.sqrt((prev_x - x0) ** 2 + (prev_y - y0) ** 2)
-                if prev_dist > dist:
-                    # sum_safety -= 1.0
-                    sum_safety -= self._distance_fctr * (prev_dist - dist)
+            if dist < mindist:
+                closest = planet
+                mindist = dist
+        r = closest.radius
+        x0, y0 = closest.center_pos
+        if (mindist - r) < THR:
+            # should not approach the closest planet at all times
+            prev_dist = np.sqrt((prev_x - x0) ** 2 + (prev_y - y0) ** 2)
+            if prev_dist > mindist:
+                sum_safety -= self._distance_fctr * (prev_dist - mindist)
 
         return sum_safety
 

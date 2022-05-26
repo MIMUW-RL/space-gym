@@ -160,7 +160,7 @@ class GoalEnv(SpaceshipEnv, ABC):
         current_dist = np.linalg.norm(self.goal_pos - self._ship_state.pos_xy)
         last_dist = np.linalg.norm(self.goal_pos - self.last_xy)
         if last_dist > current_dist:
-            return min((last_dist - current_dist) * self._distance_fctr, 1.0)
+            return (last_dist - current_dist) * self._distance_fctr
         return 0.0
 
     def _goal_vel_reward(self) -> float:

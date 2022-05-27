@@ -147,7 +147,7 @@ class GoalEnv(SpaceshipEnv, ABC):
     def _reward(self) -> float:
         reward = (
             self.survival_reward_scale
-            + self.goal_vel_reward_scale * self._goal_vel_reward()
+            + self.goal_vel_reward_scale * self._goal_vel_reward2()
             + self.safety_reward_scale * self._safety_reward_simple2()
         )
 
@@ -160,8 +160,8 @@ class GoalEnv(SpaceshipEnv, ABC):
     def _goal_vel_reward2(self) -> float:
         current_dist = np.linalg.norm(self.goal_pos - self._ship_state.pos_xy)
         last_dist = np.linalg.norm(self.goal_pos - self.last_xy)
-        if last_dist > current_dist:
-            return (last_dist - current_dist) * self._distance_fctr
+
+        return (last_dist - current_dist) * self._distance_fctr
         return 0.0
 
     def _goal_vel_reward(self) -> float:

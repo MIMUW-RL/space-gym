@@ -147,9 +147,10 @@ class GoalEnv(SpaceshipEnv, ABC):
     def _reward(self) -> float:
         reward = (
             self.survival_reward_scale
-            + self.goal_vel_reward_scale * self._goal_vel_reward2()
+            + self.goal_vel_reward_scale * self._goal_vel_reward()
             + self.safety_reward_scale * self._safety_reward_simple2()
         )
+
         threshold = 0.9 if self._hexagonal_tiling._debug else self.goal_radius
         if np.linalg.norm(self.goal_pos - self._ship_state.pos_xy) < threshold:
             reward += self.goal_sparse_reward

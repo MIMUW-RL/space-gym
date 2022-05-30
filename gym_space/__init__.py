@@ -33,22 +33,6 @@ register(
         "ship_moi": 0.01,
         "survival_reward_scale": 0.2,
         "goal_vel_reward_scale": 5.0,
-        "safety_reward_scale": 0.4,
-        "goal_sparse_reward": 5.0,
-        "max_engine_force": 0.4,
-    },
-)
-
-register(
-    id="GoalContinuous3P-v0",
-    entry_point="gym_space.envs:GoalContinuousEnv",
-    max_episode_steps=500,
-    kwargs={
-        "n_planets": 3,
-        "ship_steering": 1,
-        "ship_moi": 0.01,
-        "survival_reward_scale": 0.2,
-        "goal_vel_reward_scale": 5.0,
         "safety_reward_scale": 10.0,
         "goal_sparse_reward": 5.0,
         "max_engine_force": 0.4,
@@ -56,7 +40,7 @@ register(
 )
 
 register(
-    id="GoalContinuousL2-v0",
+    id="GoalContinuous3P-v0",
     entry_point="gym_space.envs:GoalContinuousEnv",
     max_episode_steps=500,
     kwargs={

@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 import gym
 from gym.spaces import Discrete, Box
 from gym_space.planet import Planet
-from gym_space.ship_params import ShipParams
+from gym_space.ship_params import ShipParams, Steering
 from gym_space.helpers import angle_to_unit_vector, vector_to_angle
 import numpy as np
 
@@ -39,6 +39,7 @@ class SpaceshipEnv(gym.Env, ABC):
 
     observation: np.array = field(init=False, default=None)
     last_action: np.array = field(init=False, default=None)
+    last_xy: np.array = field(init=False, default=None)
     goal_pos: np.array = field(init=False, default=None)
 
     metadata = {
@@ -53,9 +54,7 @@ class SpaceshipEnv(gym.Env, ABC):
         self._init_action_space()
         self._np_random = self._renderer = None
         self.seed()
-        self._ship_state = ShipState(
-            self.ship_params, self.planets, self.world_size, self.max_abs_vel_angle
-        )
+        self._ship_state = ShipState(self.ship_params, self.planets, self.world_size, self.max_abs_vel_angle)
 
     def reset(self):
         self._reset()
@@ -67,9 +66,12 @@ class SpaceshipEnv(gym.Env, ABC):
         return self.observation
 
     def step(self, raw_action):
+        if isinstance(self.action_space, Box):
+            raw_action = raw_action.astype(np.float32)
         assert self.action_space.contains(raw_action), raw_action
         action = np.array(self._translate_raw_action(raw_action))
         self.last_action = action
+        self.last_xy = self._ship_state.pos_xy
         done = self._ship_state.step(action, self.step_size)
         self._make_observation()
         reward = self._reward()
@@ -80,10 +82,12 @@ class SpaceshipEnv(gym.Env, ABC):
             from gym_space.rendering import Renderer
 
             self._renderer = Renderer(
-                self.planets, self.world_size, self.goal_pos, **self.renderer_kwargs
+                self.planets, self.world_size, self.goal_pos, debug_mode=True, **self.renderer_kwargs
             )
 
-        return self._renderer.render(self._ship_state.full_pos, self.last_action, mode)
+        return self._renderer.render(
+            self._ship_state.full_pos, self.last_action, self.goal_lidar, self.planets_lidars, mode
+        )
 
     def seed(self, seed=None):
         self._np_random, seed = gym.utils.seeding.np_random(seed)
@@ -108,39 +112,29 @@ class SpaceshipEnv(gym.Env, ABC):
 
     def _make_observation(self):
         # make sure that x and y positions are between -1 and 1
-        obs_pos_xy = self._ship_state.pos_xy / self.world_size
+        obs_pos_xy = self._ship_state.pos_xy  # / self.world_size
         # normalize translational velocity
-        obs_vel_xy = self._ship_state.vel_xy / self.vel_xy_std
+        obs_vel_xy = self._ship_state.vel_xy  # / self.vel_xy_std
         # make sure that angular velocity is between -1 and 1
-        obs_vel_angle = self._ship_state.vel_angle / self.max_abs_vel_angle
+        obs_vel_angle = self._ship_state.vel_angle  # / self.max_abs_vel_angle
         # represent angle as cosine and sine
         angle = self._ship_state.pos_angle
-        angle_repr = np.array([np.cos(angle), np.sin(angle)])
+        angle_repr = angle_to_unit_vector(angle)
+        # angle_repr = np.array([np.cos(angle), np.sin(angle)])
         observation = [obs_pos_xy, angle_repr, obs_vel_xy, np.array([obs_vel_angle])]
 
         if self.with_lidar:
-            observation += [
-                self._create_lidar_vector(p.center_pos, p.radius) for p in self.planets
-            ]
+            observation += [self._create_lidar_vector(p.center_pos, p.radius) for p in self.planets]
             if self.with_goal:
                 observation += [self._create_lidar_vector(self.goal_pos)]
+
         self.observation = np.concatenate(observation)
 
-    def _create_lidar_vector(
-        self, obj_pos: np.array, obj_radius: float = 0.0
-    ) -> np.array:
-        """Create vector from ship to some object.
+    def _create_lidar_vector(self, obj_pos: np.array, obj_radius: float = 0.0) -> np.array:
+        """Create vector from ship to some object."""
 
-        Lidar's point of view is ship's point of view.
-        It means that the returned vector is in coordinate system
-        such that ship's engine exhaust is pointing downwards.
-        """
         ship_center_obj_vec = obj_pos - self._ship_state.pos_xy
-        ship_obj_angle = (
-            vector_to_angle(ship_center_obj_vec)
-            - np.pi / 2
-            - self._ship_state.pos_angle
-        )
+        ship_obj_angle = vector_to_angle(ship_center_obj_vec)  # - np.pi / 2 - self._ship_state.pos_angle
         ship_obj_angle %= 2 * np.pi
         scale = (np.linalg.norm(ship_center_obj_vec) - obj_radius) * 2 / self.world_size
         return angle_to_unit_vector(ship_obj_angle) * scale
@@ -149,7 +143,11 @@ class SpaceshipEnv(gym.Env, ABC):
     def planets_lidars(self):
         if not self.with_lidar:
             return None
-        return self.observation[-2 * len(self.planets) :].reshape(-1, 2)
+        if self.with_lidar and not self.with_goal:
+            return self.observation[-2 * len(self.planets) :].reshape(-1, 2)
+        if self.with_lidar and self.with_goal:
+            # the last two observations of state vec is the goal lidar
+            return self.observation[-2 * (len(self.planets) + 1) : -2].reshape(-1, 2)
 
     @property
     def goal_lidar(self):

@@ -20,6 +20,7 @@ class Renderer:
         goal_pos: np.ndarray = None,
         num_prev_pos_vis: int = 30,
         prev_pos_color_decay: float = 0.85,
+        debug_mode=False,
     ):
         self.world_translation = np.full(2, -world_size / 2)
         self.world_scale = MAX_SCREEN_SIZE / world_size
@@ -38,6 +39,7 @@ class Renderer:
             self._init_goal()
         self.prev_ship_pos = deque(maxlen=num_prev_pos_vis)
         self.prev_pos_color_decay = prev_pos_color_decay
+        self.debug_mode = debug_mode
         self.reset(self.goal_pos)
 
     def reset(self, goal_pos: np.array = None):
@@ -45,7 +47,9 @@ class Renderer:
         self.move_goal(goal_pos)
         self.prev_ship_pos.clear()
 
-    def render(self, ship_world_position: np.array, action: np.array, mode: str):
+    def render(
+        self, ship_world_position: np.array, action: np.array, goal_lidar: np.array, planets_lidars: np.array, mode: str
+    ):
         self.viewer.add_onetime(self._torque_img)
         self._torque_img_transform.set_rotation(4)
         ship_screen_position = self._world_to_screen(ship_world_position[:2])
@@ -60,14 +64,18 @@ class Renderer:
         self.exhaust._color.vec4 = (0, 0, 0, thrust_action)
         self._torque_img_transform.scale = (-torque_action, np.abs(torque_action))
         self._draw_ship_trace()
+        goal_lidar_screen = self._world_to_screen(ship_world_position[:2] + goal_lidar)
+        planets_lidar_screen = np.zeros_like(planets_lidars)
+        for i in range(planets_lidars.shape[0]):
+            planets_lidar_screen[i] = self._world_to_screen(ship_world_position[:2] + planets_lidars[i])
+        if self.debug_mode:
+            self._draw_lidar(ship_screen_position, goal_lidar_screen, planets_lidar_screen)
         return self.viewer.render(mode == "rgb_array")
 
     def _init_planets(self):
         self._planets_transforms = []
         for planet in self.planets:
-            planet_geom = rendering.make_circle(
-                planet.radius * self.world_scale, filled=False
-            )
+            planet_geom = rendering.make_circle(planet.radius * self.world_scale, filled=False)
             transform = rendering.Transform()
             self._planets_transforms.append(transform)
             planet_geom.add_attr(transform)
@@ -79,15 +87,9 @@ class Renderer:
 
         engine_left_bottom_angle = -engine_width_angle / 2
         engine_right_bottom_angle = engine_width_angle / 2
-        engine_left_bottom_pos = engine_edge_length * angle_to_unit_vector(
-            engine_left_bottom_angle
-        )
-        engine_right_bottom_pos = engine_edge_length * angle_to_unit_vector(
-            engine_right_bottom_angle
-        )
-        engine = rendering.FilledPolygon(
-            [(0.0, 0.0), engine_left_bottom_pos, engine_right_bottom_pos]
-        )
+        engine_left_bottom_pos = engine_edge_length * angle_to_unit_vector(engine_left_bottom_angle)
+        engine_right_bottom_pos = engine_edge_length * angle_to_unit_vector(engine_right_bottom_angle)
+        engine = rendering.FilledPolygon([(0.0, 0.0), engine_left_bottom_pos, engine_right_bottom_pos])
         engine.add_attr(self.ship_transform)
         self.viewer.add_geom(engine)
 
@@ -125,9 +127,7 @@ class Renderer:
         ship_body_middle.set_color(0.5, 0.5, 0.5)
         self.viewer.add_geom(ship_body_middle)
 
-        torque_img_filename = os.path.join(
-            os.path.dirname(__file__), "assets/torque_img.png"
-        )
+        torque_img_filename = os.path.join(os.path.dirname(__file__), "assets/torque_img.png")
         self._torque_img = rendering.Image(torque_img_filename, 20.0, 20.0)
         self._torque_img_transform = rendering.Transform()
         self._torque_img.add_attr(self._torque_img_transform)
@@ -162,3 +162,17 @@ class Renderer:
 
     def _world_to_screen(self, world_pos: np.array):
         return self.world_scale * (world_pos - self.world_translation)
+
+    def _draw_lidar(self, ship_screen_position, goal_lidar_screen, planets_lidar_screen):
+        # print(f"goal_l={goal_lidar_screen}")
+        # print(f"planets_l={planets_lidar_screen}")
+        opacity = 1.0
+        vec_to_screen = 50
+
+        line = rendering.Line(ship_screen_position, goal_lidar_screen)
+        line._color.vec4 = (0, 0, 0, opacity)
+        self.viewer.add_onetime(line)
+        for i in range(planets_lidar_screen.shape[0]):
+            line = rendering.Line(ship_screen_position, planets_lidar_screen[i, :])
+            line._color.vec4 = (0, 0, 0, opacity)
+            self.viewer.add_onetime(line)

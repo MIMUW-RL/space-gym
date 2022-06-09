@@ -7,7 +7,7 @@ from scipy.integrate._ivp.ivp import OdeResult
 from functools import partial
 
 from . import helpers
-from .ship_params import ShipParams
+from .ship_params import ShipParams, Steering
 from .planet import Planet
 
 
@@ -15,9 +15,7 @@ def must_be_defined(method: Callable):
     """Property decorator that checks if ship state is defined"""
 
     def decorated_method(self, *args, **kwargs):
-        assert (
-            self.is_defined
-        ), "ShipState set() method has to be called before accessing ship state"
+        assert self.is_defined, "ShipState set() method has to be called before accessing ship state"
         return method(self, *args, **kwargs)
 
     return decorated_method
@@ -35,13 +33,9 @@ class ShipState:
     max_abs_vel_angle: InitVar[float]
 
     def __post_init__(self, world_size: float, max_abs_vel_angle: float):
-        self._termination_events = make_termination_events(
-            world_size, max_abs_vel_angle, self.planets
-        )
+        self._termination_events = make_termination_events(world_size, max_abs_vel_angle, self.planets)
 
-    def set(
-        self, pos_xy: np.array, pos_angle: float, vel_xy: np.array, vel_angle: float
-    ):
+    def set(self, pos_xy: np.array, pos_angle: float, vel_xy: np.array, vel_angle: float):
         assert pos_xy.shape == vel_xy.shape == (2,)
         self._state_vec = np.array([*pos_xy, pos_angle, *vel_xy, vel_angle])
 
@@ -117,6 +111,7 @@ def make_step(
     # noinspection PyTypeChecker
     ode_solution = solve_ivp(
         partial(ship_vector_field, ship_params, planets, action),
+        method="RK45",
         t_span=(0, step_size),
         y0=state_vec,
         events=termination_events,
@@ -130,6 +125,7 @@ def make_step(
     return state_vec, done
 
 
+# modify such that different controls are allowed
 def ship_vector_field(
     ship_params: ShipParams,
     planets: list[Planet],
@@ -139,6 +135,10 @@ def ship_vector_field(
 ):
     """Compute RHS of differential equation for ship dynamic"""
     acceleration = ship_acceleration(ship_params, planets, action, state_vec)
+    if ship_params.steering == Steering.velocity:
+        engine_action, thruster_action = action
+        force_angle = thruster_action * 5.0  # 4 is some fixed scaling of thruster action appl. to vel.
+        set_ship_vel_angle(state_vec, force_angle)
     return np.concatenate([get_ship_full_vel(state_vec), acceleration])
 
 
@@ -154,12 +154,13 @@ def ship_acceleration(
 
     force_xy = external_force_xy
     for planet in planets:
-        force_xy += helpers.gravity(
-            get_ship_pos_xy(state_vec), planet.center_pos, ship_params.mass, planet.mass
-        )
+        force_xy += helpers.gravity(get_ship_pos_xy(state_vec), planet.center_pos, ship_params.mass, planet.mass)
     acceleration_xy = force_xy / ship_params.mass
 
-    acceleration_angle = external_force_angle / ship_params.moi
+    if ship_params.steering == Steering.acceleration:
+        acceleration_angle = external_force_angle / ship_params.moi
+    else:
+        acceleration_angle = np.zeros_like(external_force_angle)
 
     return np.concatenate([acceleration_xy, acceleration_angle])
 
@@ -179,18 +180,13 @@ def wrap_ship_angle(state_vec: np.array):
     state_vec[2] %= 2 * np.pi
 
 
-def make_termination_events(
-    world_size: float, max_abs_vel_angle: float, planets: list[Planet]
-) -> list[Callable]:
+def make_termination_events(world_size: float, max_abs_vel_angle: float, planets: list[Planet]) -> list[Callable]:
     """Create continuous function that are positive iff state is not terminal"""
     events = []
 
     def planet_event(planet: Planet, _t, state_vec: np.array):
         """Crashing into a planet"""
-        return (
-            np.linalg.norm(planet.center_pos - get_ship_pos_xy(state_vec))
-            - planet.radius
-        )
+        return np.linalg.norm(planet.center_pos - get_ship_pos_xy(state_vec)) - planet.radius
 
     for planet_ in planets:
         event = partial(planet_event, planet_)
@@ -248,3 +244,7 @@ def get_ship_vel_xy(state_vec: np.array) -> np.array:
 
 def get_ship_vel_angle(state_vec: np.array) -> float:
     return state_vec[5]
+
+
+def set_ship_vel_angle(state_vec: np.array, vel: float):
+    state_vec[5] = vel

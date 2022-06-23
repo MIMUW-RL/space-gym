@@ -81,6 +81,8 @@ register(
     entry_point="gym_space.envs:KeplerContinuousEnv",
     max_episode_steps=max_episode_steps,
     kwargs={
+        "ship_steering": 1,
+        "ship_moi": 0.01,
         "reward_value": 0,
         "rad_penalty_C": 2,
         "numerator_C": 0.01,
@@ -98,6 +100,8 @@ register(
     entry_point="gym_space.envs:KeplerContinuousEnv",
     max_episode_steps=max_episode_steps,
     kwargs={
+        "ship_steering": 1,
+        "ship_moi": 0.01,
         "reward_value": 0,
         "rad_penalty_C": 2,
         "numerator_C": 0.01,
@@ -115,6 +119,8 @@ register(
     entry_point="gym_space.envs:KeplerContinuousEnv",
     max_episode_steps=max_episode_steps,
     kwargs={
+        "ship_steering": 1,
+        "ship_moi": 0.01,
         "reward_value": 0,
         "rad_penalty_C": 2,
         "numerator_C": 0.01,
@@ -132,6 +138,8 @@ register(
     entry_point="gym_space.envs:KeplerContinuousEnv",
     max_episode_steps=max_episode_steps,
     kwargs={
+        "ship_steering": 1,
+        "ship_moi": 0.01,
         "reward_value": 0,
         "rad_penalty_C": 2,
         "numerator_C": 0.01,

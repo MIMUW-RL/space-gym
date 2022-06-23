@@ -1,5 +1,5 @@
-# gym-space
-RL environments with locomotion tasks in space
+# Space-Gym
+Set of RL environments with locomotion tasks in space
 
 
 # Installation

@@ -1,6 +1,23 @@
 # Space-Gym
-Set of RL environments with locomotion tasks in space
+Set of RL environments with locomotion tasks in space. 
+The goal is to navigate a (planar) spaceship to reach the prescribed goals, or enter a prescribed orbit.
+We define a few tasks with varying difficulty. Some of the tasks we created are hard for state-of-the-art
+off-policy algorithms (SAC, TD3). 
 
+We learned a lot by the environments design process, and we find it particullary challenging to appropriately 
+shape the reward function, such that the RL algorithm converges to a satisfactory control. 
+
+The goal of the repository is to share it with the community as a benchmark that can be used to test suitable
+reinforcement learning methods and algorithms. We believe that all of the tasks can be solved in a much better
+way than demonstrated. 
+
+
+Authors : Jacek Cyranka & Kajetan Janiak (University of Warsaw)
+
+A paper with extended versions of the environments is currently under preparation.
+
+In case you have a feedback or any questions/requests concerining the Space-Gym envs do not hessitate to post an issue here
+or send it to the author(s) by a direct mail.
 
 # Installation
 `pip install -e .`, then see example in `keyboard_agent.py`
@@ -9,7 +26,7 @@ Set of RL environments with locomotion tasks in space
 
 ### GoalEnv
 Navigate spaceship to achieve subsequent goal positions while avoiding
-the planets and leaving the world (window) boundaries.
+crusing on any planet and leaving the world (window) boundaries.
 
 Parameters:
 
@@ -18,7 +35,27 @@ Parameters:
  - `goal_vel_reward_scale` - fraction of reward for velocity toward current goal
  - `safety_reward_scale` - fraction of reward for not flying fast toward close obstacles
  - `goal_sparse_reward` - reward for achieving a goal
- - `renderer_kwargs` - additional parameters for renderer, see below
+ - `ship_steering` - if ship is steered by the angular velocity (the action sets the angular velocity) or the angular acceleration (the action sets the angular acceleration), then the ship has fixed moment of intertia (set using another parameter `ship_moi`)
+
+There are several difficulty levels. For each level we provide the rewards achieved by the best RL method that we tested and the Human baseline score, obtained using the so-called keyboard-agent (see `keyboard_agent.py`)
+
+ 1. two planets present within the region boundaries (there is predefined env with default parameters `GoalContinuous2P-v0`), it is easily solved by off policy RL algorithms (SAC & TD3).
+ 2. three planets present within the boundaries (there is predefined env with default parameters `GoalContinuous3P-v0`), much harder challenge than two planets, all of the tested RL methods have issues grasping how to use gravity and avoid crashing on a planet.
+ 3. four planets present within the boundaries (there is predefined env with default parameters `GoalContinuous4P-v0`), this environment is not solvable and the policy is not able to avoid continuously crasing on a planet.
+
+### Kepler Orbit Env
+
+
+
+# Preliminary Training Results
+
+We perofrmed a bunch of a trainings using the [Stable-baselines3](https://github.com/DLR-RM/stable-baselines3) software, in particular the [rl-baselines3-zoo](https://github.com/DLR-RM/rl-baselines3-zoo).
+
+### GoalEnv
+
+
+
+### Kepler Orbit Env
 
 # Implementation
 
@@ -55,59 +92,20 @@ we implemented an algorithm based on hexagonal tiling of a plane.
 Related code is in `hexagonal_tiling.py`. To make sense of it, please refer to `notebooks/hexagonal_tiling.ipynb`.
 
 
-# Hyperparameters optimization
+# Stable-Baselines 3 starting agents
+We provide
 
-Create virtual env
+### License
+Copyright 2013 Jacek Cyranka & Kajetan Janiak (University of Warsaw)
 
-```shell
-python3.8 -m venv gym_space_venv
-source gym_space_venv/bin/activate
-````
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
-Clone and install gym-space and rl-baselines3-zoo
-```shell
-git clone git@github.com:MIMUW-RL/rl-baselines3-zoo.git
-cd rl-baselines3-zoo
-git checkout gym-space
-pip install -r requirements.txt
-cd ..
-git clone git@github.com:MIMUW-RL/gym-space.git
-pip install -e gym-space
-```
+   http://www.apache.org/licenses/LICENSE-2.0
 
-### On rl machine:
-In screen session:
-```shell
-for i in {1..3}; do CUDA_VISIBLE_DEVICES=<gpu_nr> python train.py --algo sac --env gym_space:GoalContinuous-v0 --env-kwargs k1:v1 k2:v2 ... -optimize -n <n_timesteps> --n-trials <n_trials> --study-name <study_name> --storage postgresql://hyperopt_example:hyperopt_example@localhost/hyperopt_example & done
-```
-where `gpu_nr` is 0 or 1.
-
-### On Entropy cluster
-Create `job<x>.sh` file containing
-```shell
-#!/bin/bash
-#
-#SBATCH --job-name=<study_name><x>
-#SBATCH --output=/home/<username>/<study_name><x>.out
-#SBATCH --error=/home/<username>/<study_name><x>.err
-#SBATCH --partition=common
-#SBATCH --qos=<qos>
-#SBATCH --gres=gpu:1
-
-
-source /home/<username>/gym_space_venv/bin/activate
-cd /home/<username>/rl-baselines3-zoo
-for i in {1..3}
-do
-   python -u train.py --algo sac --env gym_space:GoalContinuous-v0 -optimize -n <n_timesteps> --n-trials <n_trials> --study-name <study_name> --storage postgresql://hyperopt_example:hyperopt_example@rl/hyperopt_example &
-done
-wait
-deactivate
-```
-My `qos` is `4gpu7d`, which means up to 4 GPUs and max job time of one week.
-Thus for me `x` is 0-3.
-
-Submit each job on slurm
-```shell
-sbatch job<x>.sh
-```
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.

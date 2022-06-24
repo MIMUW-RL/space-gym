@@ -82,7 +82,7 @@ class SpaceshipEnv(gym.Env, ABC):
             from gym_space.rendering import Renderer
 
             self._renderer = Renderer(
-                self.planets, self.world_size, self.goal_pos, debug_mode=True, **self.renderer_kwargs
+                self.planets, self.world_size, self.goal_pos, **self.renderer_kwargs
             )
 
         return self._renderer.render(

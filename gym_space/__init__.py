@@ -73,7 +73,7 @@ register(
 
 # selection of Kepler orbit problem environments
 
-step_size = 0.1
+step_size = 0.07
 max_episode_steps = 500
 
 register(

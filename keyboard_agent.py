@@ -3,26 +3,27 @@ import time
 import gym
 import numpy as np
 
-step_size = 0.15
-
-gym.envs.register(
-    id="KeplerDiscrete-v0",
-    entry_point="gym_space.envs.kepler:KeplerDiscreteEnv",
-    max_episode_steps=1000,
-    kwargs={
-        "reward_value": 0,
-        "rad_penalty_C": 2,
-        "numerator_C": 0.01,
-        "act_penalty_C": 0.5,
-        "step_size": step_size,
-        "randomize": True,
-    },
-)
-
 if __name__ == "__main__":
-    # env = gym.make(f"gym_space:DoNotCrashDiscrete-v0")
-    # env = gym.make(f"gym_space:KeplerDiscrete-v0")
-    # env = gym.make(f"gym_space:GoalDiscrete-v0")
+
+    gym.envs.register(
+        id=f"KeplerDiscrete-v0",
+        entry_point="gym_space.envs:KeplerDiscreteEnv",
+        kwargs={
+            "ship_steering": 1,
+            "ship_moi": 0.01,
+            "max_engine_force": 0.4,
+            "reward_value": 0,
+            "rad_penalty_C": 2,
+            "numerator_C": 0.01,
+            "act_penalty_C": 0.5,
+            "step_size": 0.07,
+            "randomize": False,
+            "ref_orbit_a": 1.2,
+            "ref_orbit_eccentricity": 0,
+            "ref_orbit_angle": 0,
+        },
+    )
+    #env = gym.make("KeplerDiscrete-v0")
 
     gym.envs.register(
         id="GoalDiscrete3-v0",
@@ -38,8 +39,7 @@ if __name__ == "__main__":
             "max_engine_force": 0.4,
         },
     )
-
-    env = gym.make(f"gym_space:GoalDiscrete3-v0")
+    env = gym.make(f"GoalDiscrete3-v0")
 
     if not hasattr(env.action_space, "n"):
         raise Exception("Keyboard agent only supports discrete action spaces")

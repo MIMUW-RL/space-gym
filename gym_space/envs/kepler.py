@@ -207,18 +207,19 @@ class KeplerEnv(SpaceshipEnv, ABC):
         ship_params = ShipParams(
             Steering(ship_steering), mass=1, moi=ship_moi, max_engine_force=max_engine_force, max_thruster_force=0.05
         )
-        
+        print("current env args:")
+        print(f"steering={ship_params.steering}")
 
         super().__init__(
             ship_params=ship_params,
             planets=[planet, border],
             world_size=2 * self._border_radius,
-            max_abs_vel_angle=2,
+            max_abs_vel_angle=6,
             step_size=step_size,
             vel_xy_std=np.ones(2),
             with_lidar=False,
             with_goal=False,
-            renderer_kwargs={"num_prev_pos_vis": 75, "prev_pos_color_decay": 0.95},
+            renderer_kwargs={"num_prev_pos_vis": 75, "prev_pos_color_decay": 0.95, "debug_mode": False},
         )
         self.ref_orbit_a = ref_orbit_a
         self.reward_value = reward_value

@@ -37,6 +37,8 @@ Parameters:
  - `goal_sparse_reward` - reward for achieving a goal
  - `ship_steering` - if ship is steered by the angular velocity (the action sets the angular velocity) or the angular acceleration (the action sets the angular acceleration), then the ship has fixed moment of intertia (set using another parameter `ship_moi`)
 
+For the exact formula of the reward please refer to `GoalEnv._reward()` in `gym_space/envs/goal.py`. 
+
 There are several difficulty levels. For each level we provide the rewards achieved by the best RL method that we tested and the Human baseline score, obtained using the so-called keyboard-agent (see `keyboard_agent.py`)
 
  1. two planets present within the region boundaries (there is predefined env with default parameters `GoalContinuous2P-v0`), it is easily solved by off policy RL algorithms (SAC & TD3).
@@ -45,7 +47,20 @@ There are several difficulty levels. For each level we provide the rewards achie
 
 ### Kepler Orbit Env
 
+Control spaceship to enter a specified orbit from any initial condition utilizing the least energy.
 
+Parameters:
+ - `ship_steering` - if ship is steered by the angular velocity (the action sets the angular velocity) or the angular acceleration (the action sets the angular acceleration), then the ship has fixed moment of intertia (set using another parameter `ship_moi`).
+ - `rad_penalty_C` - penalty term coefficient for the distance to the reference orbit radius (reward is inversely proportional to the distance). 
+ - `numerator_C` - the constant in the denominator of the step-wise reward value, and added in the denominator (hence the maximal step-wise reward is `1`).
+ - `act_penalty_C` - penalty term coefficient for the energy utilized to perform the action during the current step.
+ - `step_size` - the numerical integrator step size.
+ - `randomize`- if the orbit should be randomized at every reset (then the parameters of the orbit are appended to the observation vector).
+ - `ref_orbit_a`, `ref_orbit_eccentricity`, `ref_orbit_angle` if the orbit is fixed, the reference parameters of the target orbit.
+
+The reward is also inversely proportional to the absolute distance of the current velocity to the reference orbit velocity, which is easily computed for the [Kepler orbits](https://en.wikipedia.org/wiki/Kepler_orbit).
+
+For the exact formula of the reward please refer to `KeplerEnv._reward()` in `gym_space/envs/kepler.py`.
 
 # Preliminary Training Results
 

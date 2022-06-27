@@ -68,9 +68,12 @@ We perofrmed a bunch of a trainings using the [Stable-baselines3](https://github
 
 ### GoalEnv
 
-
+![Space Gym goal 2 planets](imgs/GoalContinuous2P.png)
 
 ### Kepler Orbit Env
+
+# Conclusions and Future Work
+
 
 # Implementation
 

@@ -68,7 +68,7 @@ class GoalEnv(SpaceshipEnv, ABC):
             vel_xy_std=np.ones(2),
             with_lidar=True,
             with_goal=True,
-            renderer_kwargs=renderer_kwargs,
+            renderer_kwargs={"debug_mode": True},
         )
 
     def seed(self, seed=None):

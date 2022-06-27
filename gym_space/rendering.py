@@ -64,11 +64,15 @@ class Renderer:
         self.exhaust._color.vec4 = (0, 0, 0, thrust_action)
         self._torque_img_transform.scale = (-torque_action, np.abs(torque_action))
         self._draw_ship_trace()
-        goal_lidar_screen = self._world_to_screen(ship_world_position[:2] + goal_lidar)
+
+        
+        
         planets_lidar_screen = np.zeros_like(planets_lidars)
-        for i in range(planets_lidars.shape[0]):
-            planets_lidar_screen[i] = self._world_to_screen(ship_world_position[:2] + planets_lidars[i])
+        
         if self.debug_mode:
+            goal_lidar_screen = self._world_to_screen(ship_world_position[:2] + goal_lidar)
+            for i in range(planets_lidars.shape[0]):
+                planets_lidar_screen[i] = self._world_to_screen(ship_world_position[:2] + planets_lidars[i])
             self._draw_lidar(ship_screen_position, goal_lidar_screen, planets_lidar_screen)
         return self.viewer.render(mode == "rgb_array")
 

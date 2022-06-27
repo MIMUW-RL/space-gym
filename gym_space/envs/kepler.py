@@ -9,7 +9,7 @@ from gym_space.helpers import (
 )
 from gym_space.planet import Planet
 from gym.spaces import Box
-from gym_space.ship_params import ShipParams
+from gym_space.ship_params import ShipParams, Steering
 from .spaceship_env import SpaceshipEnv, DiscreteSpaceshipEnv, ContinuousSpaceshipEnv
 
 
@@ -197,24 +197,29 @@ class KeplerEnv(SpaceshipEnv, ABC):
         rad_penalty_C=2.0,
         act_penalty_C=0.5,
         step_size=0.1,
+        ship_steering: int = 0,
+        ship_moi: float = 0.01,
+        max_engine_force=0.4,
     ):
         planet = Planet(center_pos=np.zeros(2), mass=6e8, radius=self._planet_radius)
         # here we use planet outline as external border, i.e. we fly "inside planet"
         border = Planet(center_pos=np.zeros(2), mass=0.0, radius=self._border_radius)
         ship_params = ShipParams(
-            mass=1, moi=0.05, max_engine_force=0.3, max_thruster_force=0.05
+            Steering(ship_steering), mass=1, moi=ship_moi, max_engine_force=max_engine_force, max_thruster_force=0.05
         )
+        print("current env args:")
+        print(f"steering={ship_params.steering}")
 
         super().__init__(
             ship_params=ship_params,
             planets=[planet, border],
             world_size=2 * self._border_radius,
-            max_abs_vel_angle=2,
+            max_abs_vel_angle=6,
             step_size=step_size,
             vel_xy_std=np.ones(2),
             with_lidar=False,
             with_goal=False,
-            renderer_kwargs={"num_prev_pos_vis": 75, "prev_pos_color_decay": 0.95},
+            renderer_kwargs={"num_prev_pos_vis": 75, "prev_pos_color_decay": 0.95, "debug_mode": False},
         )
         self.ref_orbit_a = ref_orbit_a
         self.reward_value = reward_value

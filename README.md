@@ -1,23 +1,16 @@
 # Space-Gym
-Set of RL environments with locomotion tasks in space. 
-The goal is to navigate a (planar) spaceship to reach the prescribed goals, or enter a prescribed orbit.
-We define a few tasks with varying difficulty. Some of the tasks we created are hard for state-of-the-art
-off-policy algorithms (SAC, TD3). 
 
-We learned a lot by the environments design process, and we find it particullary challenging to appropriately 
-shape the reward function, such that the RL algorithm converges to a satisfactory control. 
+Set of RL environments with locomotion tasks in space. The goal is to navigate a (planar) spaceship to reach the prescribed goals, or enter a prescribed orbit. We define a few tasks with varying difficulty, and some of the tasks we created are hard for state-of-the-art off-policy algorithms (SAC, TD3).
 
-The goal of the repository is to share it with the community as a benchmark that can be used to test suitable
-reinforcement learning methods and algorithms. We believe that all of the tasks can be solved in a much better
-way than demonstrated. 
+We learned a lot from the environment design process. We find it particularly challenging to appropriately shape the reward function such that the RL algorithm converges to a satisfactory control.
 
+The goal of the repository is to share it with the community as a benchmark that can be used to test suitable reinforcement learning methods and algorithms. We believe that all of the tasks can be solved in a much better way than demonstrated.
 
 Authors : Jacek Cyranka & Kajetan Janiak (University of Warsaw)
 
 A paper with extended versions of the environments is currently under preparation.
 
-In case you have a feedback or any questions/requests concerining the Space-Gym envs do not hessitate to post an issue here
-or send it to the author(s) by a direct mail.
+If you have feedback or any questions/requests concerning the Space-Gym envs, do not hesitate to post an issue here or send it to the author(s) by direct mail.
 
 # Installation
 `pip install -e .`, then see example in `keyboard_agent.py`
@@ -25,8 +18,7 @@ or send it to the author(s) by a direct mail.
 # Environments
 
 ### GoalEnv
-Navigate spaceship to achieve subsequent goal positions while avoiding
-crusing on any planet and leaving the world (window) boundaries.
+Navigate the spaceship to achieve subsequent goal positions while avoiding crashing on any planet and leaving the world (window) boundaries.
 
 Parameters:
 
@@ -41,9 +33,9 @@ For the exact formula of the reward please refer to `GoalEnv._reward()` in `gym_
 
 There are several difficulty levels. For each level we provide the rewards achieved by the best RL method that we tested and the Human baseline score, obtained using the so-called keyboard-agent (see `keyboard_agent.py`)
 
- 1. two planets present within the region boundaries (there is predefined env with default parameters `GoalContinuous2P-v0`), it is easily solved by off policy RL algorithms (SAC & TD3).
- 2. three planets present within the boundaries (there is predefined env with default parameters `GoalContinuous3P-v0`), much harder challenge than two planets, all of the tested RL methods have issues grasping how to use gravity and avoid crashing on a planet.
- 3. four planets present within the boundaries (there is predefined env with default parameters `GoalContinuous4P-v0`), this environment is not solvable and the policy is not able to avoid continuously crasing on a planet.
+ 1. two planets present within the region boundaries (there is predefined env with default parameters `GoalContinuous2P-v0`), it is easily solved by off-policy RL algorithms (SAC & TD3).
+ 2. three planets present within the boundaries (there is predefined env with default parameters `GoalContinuous3P-v0`), much harder challenge than two planets, all of the tested RL methods have issues grasping how to use gravity and avoid crashing.
+ 3. four planets present within the boundaries (there is predefined env with default parameters `GoalContinuous4P-v0`), this environment is not solvable and the policy is not able to avoid continuously crasing.
 
 ### Kepler Orbit Env
 
@@ -93,9 +85,9 @@ Human baseline score (mean/std.dev. from 5 episodes) measured using `keyboard_ag
 
 # Conclusions and Future Work
 
-There is still a significant room for improving the performance of RL agents in the presented environments. One particulary promising direction is to try a safety RL method. We expect that better shaped reward functions and extended observation vectors may result in significant performance improvements as well.
+There is still significant room for improving the performance of RL agents in the presented environments. One particularly promising direction is to try a safety RL method. We expect that better-shaped reward functions and extended observation vectors may result in significant performance improvements as well.
 
-We could not explain the dramatic performance drop when increasing the number of planets from 2 upto 3. The measured human baseline score is similar for the 2 planets env. and is significantly smaller for the case of 3 planets.
+We could not explain the dramatic performance drop when increasing the number of planets from 2 up to 3. The measured human baseline score is similar for the two planets env and is significantly smaller for the case of 3 planets.
 
 # Implementation Remarks
 

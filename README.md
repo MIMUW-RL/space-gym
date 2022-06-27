@@ -64,18 +64,40 @@ For the exact formula of the reward please refer to `KeplerEnv._reward()` in `gy
 
 # Preliminary Training Results
 
-We perofrmed a bunch of a trainings using the [Stable-baselines3](https://github.com/DLR-RM/stable-baselines3) software, in particular the [rl-baselines3-zoo](https://github.com/DLR-RM/rl-baselines3-zoo).
+We perofrmed a bunch of a trainings using the [Stable-baselines3](https://github.com/DLR-RM/stable-baselines3) software, in particular the [rl-baselines3-zoo](https://github.com/DLR-RM/rl-baselines3-zoo). We used the default hyperparameters of TD3, SAC. PPO performed significantly worse. A preliminary hyperparameter optimization that we performed showed no significant improvements over the default ones.
 
 ### GoalEnv
 
-![Space Gym goal 2 planets](imgs/GoalContinuous2P.png)
+#### 2 Planets
+<img src="imgs/GoalContinuous2P.png" width="400"/> <img src="imgs/sac_GoalContinuous2P-v0-step-0-to-step-2000.gif" width="250"/>
+
+Human baseline score (mean/std.dev. from 5 episodes) measured using `keyboard_agent.py` 4715 +- 799
+
+#### 3 Planets
+<img src="imgs/GoalContinuous3P.png" width="400"/> <img src="imgs/sac_GoalContinuous3P-v0-step-0-to-step-2000.gif" width="250"/>
+
+Human baseline score (mean/std.dev. from 5 episodes) measured using `keyboard_agent.py` 4659 +-747
+
+#### 4 Planets
+<img src="imgs/GoalContinuous4P.png" width="400"/> <img src="imgs/sac_GoalContinuous4P-v0-step-0-to-step-2000.gif" width="250"/>
+
 
 ### Kepler Orbit Env
 
+#### Circle Orbit
+<img src="imgs/KeplerCircleOrbit-v0__sac.png" width="400"/> <img src="imgs/KeplerCircleOrbit-v0-step-0-to-step-2000.gif" width="250"/>
+
+#### Ellipsoidal Orbit
+<img src="imgs/KeplerEllipseEasy-v0__sac.png" width="400"/> <img src="imgs/KeplerEllipseEasy-v0-step-0-to-step-2000.gif" width="250"/>
+
+
 # Conclusions and Future Work
 
+There is still a significant room for improving the performance of RL agents in the presented environments. One particulary promising direction is to try a safety RL method. We expect that better shaped reward functions and extended observation vectors may result in significant performance improvements as well.
 
-# Implementation
+We could not explain the dramatic performance drop when increasing the number of planets from 2 upto 3. The measured human baseline score is similar for the 2 planets env. and is significantly smaller for the case of 3 planets.
+
+# Implementation Remarks
 
 ### Environments
 
@@ -111,7 +133,7 @@ Related code is in `hexagonal_tiling.py`. To make sense of it, please refer to `
 
 
 # Stable-Baselines 3 starting agents
-We provide
+TBA
 
 ### License
 Copyright 2013 Jacek Cyranka & Kajetan Janiak (University of Warsaw)

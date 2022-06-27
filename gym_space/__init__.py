@@ -83,7 +83,6 @@ register(
     kwargs={
         "ship_steering": 1,
         "ship_moi": 0.01,
-        "reward_value": 0,
         "rad_penalty_C": 2,
         "numerator_C": 0.01,
         "act_penalty_C": 0.5,
@@ -102,7 +101,6 @@ register(
     kwargs={
         "ship_steering": 1,
         "ship_moi": 0.01,
-        "reward_value": 0,
         "rad_penalty_C": 2,
         "numerator_C": 0.01,
         "act_penalty_C": 0.5,
@@ -121,7 +119,6 @@ register(
     kwargs={
         "ship_steering": 1,
         "ship_moi": 0.01,
-        "reward_value": 0,
         "rad_penalty_C": 2,
         "numerator_C": 0.01,
         "act_penalty_C": 0.5,
@@ -140,7 +137,6 @@ register(
     kwargs={
         "ship_steering": 1,
         "ship_moi": 0.01,
-        "reward_value": 0,
         "rad_penalty_C": 2,
         "numerator_C": 0.01,
         "act_penalty_C": 0.5,

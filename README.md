@@ -136,7 +136,7 @@ Related code is in `hexagonal_tiling.py`. To make sense of it, please refer to `
 TBA
 
 ### License
-Copyright 2013 Jacek Cyranka & Kajetan Janiak (University of Warsaw)
+Copyright 2021 Jacek Cyranka & Kajetan Janiak (University of Warsaw)
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
